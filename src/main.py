@@ -54,6 +54,29 @@ def sync_to_supabase(record_dict: dict, full_table_name: str):
     except Exception as e:
         Actor.log.error(f"❌ Supabase Sync Failed: {e}")
 
+def check_url_exists(url: str, full_table_name: str) -> bool:
+    """Checks if a URL already exists in the target table."""
+    api_url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    
+    if not api_url or not key:
+        return False
+
+    try:
+        supabase: Client = create_client(api_url, key)
+        if "." in full_table_name:
+            schema_name, table_name = full_table_name.split(".", 1)
+            query = supabase.schema(schema_name).table(table_name)
+        else:
+            query = supabase.table(full_table_name)
+            
+        # Check for existence
+        response = query.select("url").eq("url", url).execute()
+        return len(response.data) > 0
+    except Exception as e:
+        Actor.log.warning(f"⚠️ Failed to check duplicate for {url}: {e}")
+        return False
+
 # --- State Definition ---
 class WorkflowState(TypedDict):
     config: InputConfig
@@ -81,6 +104,21 @@ async def process_article_node(state: WorkflowState):
     article = articles[idx]
     Actor.log.info(f"👉 [{idx+1}/{len(articles)}] Processing: {article.title}")
 
+    # 0. STRATEGY: Deduplication Check
+    # Determine table based on article niche or config niche
+    article_niche = getattr(article, 'niche', None) or config.niche
+    # If niche is 'all', specific article niche should be set. If not, fallback to config (which shouldn't happen if feeds.py is right)
+    if article_niche == 'all':
+        article_niche = 'general' # Safe fallback
+
+    target_table = f"intelligence.{article_niche}"
+    
+    if not config.runTestMode:
+        exists = await asyncio.to_thread(check_url_exists, article.url, target_table)
+        if exists:
+            Actor.log.info(f"⏭️ Skipping duplicate: {article.title}")
+            return {"current_index": idx + 1}
+
     # 1. STRATEGY: Scrape First
     context = scrape_article_content(article.url, config.runTestMode)
     method = "scraped"
@@ -102,7 +140,7 @@ async def process_article_node(state: WorkflowState):
                 await Actor.charge(event_name="summarize_snippets_with_llm") #
 
             record = DatasetRecord(
-                niche=config.niche,
+                niche=article_niche, # Use specific niche
                 source_feed=article.source,
                 title=article.title,
                 url=article.url,
@@ -122,11 +160,7 @@ async def process_article_node(state: WorkflowState):
             await Actor.push_data(record.model_dump())
             Actor.log.info("✅ Data pushed to dataset.")
             
-            # Dynamic Table Routing based on Niche
-            # Default to 'intelligence.gaming' if niche is gaming, else 'intelligence.<niche>'
-            table_name = f"intelligence.{config.niche}"
-            
-            await asyncio.to_thread(sync_to_supabase, record.model_dump(), table_name)
+            await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
             
         except Exception as e:
             Actor.log.error(f"Analysis loop failed for {article.title}: {e}")

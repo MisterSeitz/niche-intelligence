@@ -230,46 +230,78 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
     # 2. REAL MODE
     urls = []
     
-    # Logic: 
-    # If custom URL provided -> Use it.
-    # Else if source is "all" -> Use all feeds from the selected niche.
-    # Else -> Attempt to find specific source in niche map.
-    
-    selected_niche_map = NICHE_FEED_MAP.get(config.niche, NICHE_FEED_MAP.get("gaming")) # Default to gaming if unknown
-    
-    if config.source == "custom" and config.customFeedUrl:
-        urls.append(config.customFeedUrl)
-    elif config.source == "all":
-        urls = list(selected_niche_map.values())
-    elif config.source in selected_niche_map:
-        urls.append(selected_niche_map[config.source])
+    # Logic to determine which niches to fetch
+    target_niches = []
+    if config.niche == "all":
+        # Exclude 'all' itself if it accidentally got into the map, keeps it clean
+        target_niches = [k for k in NICHE_FEED_MAP.keys() if k != "all"]
     else:
-        # Fallback if specific source not found in niche (or if client sends mismatch)
-        Actor.log.warning(f"Source '{config.source}' not found in niche '{config.niche}'. Defaulting to ALL feeds for this niche.")
-        urls = list(selected_niche_map.values())
-
-    articles = []
+        target_niches = [config.niche]
     
-    for url in urls:
+    Actor.log.info(f"Fetching feeds for niches: {target_niches}")
+
+    for niche in target_niches:
+        niche_urls = []
+        feed_map = NICHE_FEED_MAP.get(niche, {})
+        
+        if config.source == "custom" and config.customFeedUrl:
+             # If custom, we probably just want to fetch that one URL, maybe associating it with the *primary* niche selected?
+             # But if niche is 'all', custom source is ambiguous. 
+             # Let's assume custom source applies to the PRIMARY run context only. 
+             # If niche='all', source='custom' is a bit weird. 
+             # Let's adhere to the schema: if source='custom', we just use that URL. The niche might be ambiguous.
+             # We'll just break loop and add it once if found.
+             if not urls: # Only add once
+                 urls.append({"url": config.customFeedUrl, "niche": config.niche if config.niche != "all" else "general"})
+             break
+        
+        elif config.source == "all":
+            # Add all feeds for this niche
+            for url in feed_map.values():
+                urls.append({"url": url, "niche": niche})
+        
+        elif config.source in feed_map:
+            # Specific source for this niche
+            urls.append({"url": feed_map[config.source], "niche": niche})
+
+    Actor.log.info(f"Found {len(urls)} feeds to process.")
+
+    feed_data = []
+    
+    # We might want to limit total articles or per-niche. 
+    # For now, let's fetch all and let the main loop limit by maxArticles *total* or we can just fetch.
+    # Be careful with 'all' niches -> lots of requests.
+    
+    for entry in urls:
+        url = entry["url"]
+        niche_context = entry["niche"]
+        
         try:
+            Actor.log.info(f"Fetching RSS: {url} [{niche_context}]")
             feed = feedparser.parse(url)
-            source_name = feed.feed.get("title", "Unknown Source")
             
-            for entry in feed.entries[:config.maxArticles]:
-                articles.append(ArticleCandidate(
-                    title=entry.get("title", "No Title"),
-                    url=entry.get("link", ""),
-                    source=source_name,
-                    published=entry.get("published"),
-                    original_summary=entry.get("summary", "")
-                ))
+            for entry_data in feed.entries:
+                # Basic validation
+                if not hasattr(entry_data, 'title') or not hasattr(entry_data, 'link'):
+                    continue
+                    
+                feed_data.append(
+                    ArticleCandidate(
+                        title=entry_data.title,
+                        url=entry_data.link,
+                        source=feed.feed.get('title', 'Unknown Feed'),
+                        published=entry_data.get('published'),
+                        original_summary=entry_data.get('summary') or entry_data.get('description'),
+                        niche=niche_context 
+                    )
+                )
         except Exception as e:
-            Actor.log.warning(f"Failed to parse feed {url}: {e}")
+            Actor.log.error(f"Failed to fetch {url}: {e}")
 
     # Deduplicate by URL
     seen = set()
     unique_articles = []
-    for art in articles:
+    for art in feed_data: # Changed from 'articles' to 'feed_data'
         if art.url not in seen:
             unique_articles.append(art)
             seen.add(art.url)

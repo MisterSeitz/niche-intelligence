@@ -16,6 +16,7 @@ class ArticleCandidate(BaseModel):
     source: str
     published: Optional[str] = None
     original_summary: Optional[str] = None
+    niche: Optional[str] = None
 
 class AnalysisResult(BaseModel):
     sentiment: str = Field(description="Hype/Interest level")
