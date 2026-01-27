@@ -1,0 +1,9 @@
+apify
+langgraph
+langchain-core
+openai
+pydantic
+requests
+beautifulsoup4
+feedparser
+supabase

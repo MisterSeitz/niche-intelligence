@@ -1,0 +1,44 @@
+{
+    "title": "🎮 AI Gaming News Intelligence",
+    "description": "Scrapes top gaming feeds, enriches with Web Search, and analyzes via OpenRouter AI.",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "source": {
+            "title": "📰 News Source",
+            "type": "string",
+            "editor": "select",
+            "default": "all",
+            "prefill": "all",
+            "enum": ["all", "esportsinsider", "ign-articles", "pcgamer", "kotaku", "custom"],
+            "enumTitles": ["🌍 All Major Sources", "Esports Insider", "IGN", "PC Gamer", "Kotaku", "🔗 Custom RSS"],
+            "description": "Select a preset source or choose Custom to provide your own RSS.",
+            "sectionCaption": "Data Pipeline Settings"
+        },
+        "customFeedUrl": {
+            "title": "🔗 Custom RSS URL",
+            "type": "string",
+            "editor": "textfield",
+            "prefill": "https://www.theverge.com/rss/index.xml",
+            "description": "If 'Custom RSS' is selected, paste the Feed URL here."
+        },
+        "maxArticles": {
+            "title": "🔢 Max Articles",
+            "type": "integer",
+            "default": 10,
+            "prefill": 5,
+            "minimum": 1,
+            "maximum": 50,
+            "description": "Number of articles to process per run."
+        },
+        "runTestMode": {
+            "title": "🧪 Run Test Mode (Zero Cost)",
+            "type": "boolean",
+            "default": false,
+            "prefill": false,
+            "description": "If enabled, returns dummy data without calling external APIs. Used for integration testing.",
+            "sectionCaption": "Maintenance & QA"
+        }
+    },
+    "required": ["source", "maxArticles", "runTestMode"]
+}
