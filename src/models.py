@@ -2,6 +2,7 @@ from pydantic import BaseModel, HttpUrl, Field
 from typing import List, Optional, Any
 
 class InputConfig(BaseModel):
+    niche: str = "gaming"
     source: str = "all"
     customFeedUrl: Optional[str] = None
     maxArticles: int = 10
@@ -21,8 +22,13 @@ class AnalysisResult(BaseModel):
     category: str = Field(description="Thematic category")
     key_entities: List[str] = Field(description="Games, Studios, or People")
     summary: str = Field(description="AI synthesized summary")
+    location: Optional[str] = Field(description="General location context")
+    city: Optional[str] = Field(description="Specific city if mentioned")
+    country: Optional[str] = Field(description="Country context")
+    is_south_africa: bool = Field(description="True if content is relevant to South Africa")
     
 class DatasetRecord(BaseModel):
+    niche: str
     source_feed: str
     title: str
     url: str
@@ -32,4 +38,8 @@ class DatasetRecord(BaseModel):
     category: str
     key_entities: List[str]
     ai_summary: str
+    location: Optional[str]
+    city: Optional[str]
+    country: Optional[str]
+    is_south_africa: bool
     raw_context_source: Optional[str] = None

@@ -4,16 +4,62 @@
     "type": "object",
     "schemaVersion": 1,
     "properties": {
+        "niche": {
+            "title": "🎯 Intelligence Niche",
+            "type": "string",
+            "editor": "select",
+            "default": "gaming",
+            "prefill": "gaming",
+            "enum": [
+                "gaming",
+                "crypto",
+                "tech",
+                "nuclear",
+                "education",
+                "foodtech",
+                "health",
+                "nutrition",
+                "luxury",
+                "realestate",
+                "retail",
+                "social",
+                "vc",
+                "web3"
+            ],
+            "enumTitles": [
+                "🎮 Gaming & Esports",
+                "💰 Crypto & DeFi",
+                "💻 Tech & Dev",
+                "⚛️ Nuclear Energy",
+                "🎓 Education",
+                "🌾 FoodTech & Agri",
+                "💪 Health & Wellness",
+                "🥗 Nutrition",
+                "💎 Luxury & Lifestyle",
+                "🏠 Real Estate",
+                "🛍️ Retail & Ecommerce",
+                "📱 Social Media",
+                "🚀 VC & Startups",
+                "🌐 Web3"
+            ],
+            "description": "Select the specific vertical for intelligence gathering.",
+            "sectionCaption": "Data Pipeline Settings"
+        },
         "source": {
             "title": "📰 News Source",
             "type": "string",
             "editor": "select",
             "default": "all",
             "prefill": "all",
-            "enum": ["all", "esportsinsider", "ign-articles", "pcgamer", "kotaku", "custom"],
-            "enumTitles": ["🌍 All Major Sources", "Esports Insider", "IGN", "PC Gamer", "Kotaku", "🔗 Custom RSS"],
-            "description": "Select a preset source or choose Custom to provide your own RSS.",
-            "sectionCaption": "Data Pipeline Settings"
+            "enum": [
+                "all",
+                "custom"
+            ],
+            "enumTitles": [
+                "🌍 All Niche Sources",
+                "🔗 Custom RSS"
+            ],
+            "description": "Select 'All' to use the curated list for the selected Niche, or 'Custom' for a specific URL."
         },
         "customFeedUrl": {
             "title": "🔗 Custom RSS URL",
@@ -40,5 +86,9 @@
             "sectionCaption": "Maintenance & QA"
         }
     },
-    "required": ["source", "maxArticles", "runTestMode"]
+    "required": [
+        "source",
+        "maxArticles",
+        "runTestMode"
+    ]
 }

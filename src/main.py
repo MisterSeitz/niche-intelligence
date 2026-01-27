@@ -102,6 +102,7 @@ async def process_article_node(state: WorkflowState):
                 await Actor.charge(event_name="summarize_snippets_with_llm") #
 
             record = DatasetRecord(
+                niche=config.niche,
                 source_feed=article.source,
                 title=article.title,
                 url=article.url,
@@ -111,12 +112,21 @@ async def process_article_node(state: WorkflowState):
                 category=analysis.category,
                 key_entities=analysis.key_entities,
                 ai_summary=analysis.summary,
+                location=analysis.location,
+                city=analysis.city,
+                country=analysis.country,
+                is_south_africa=analysis.is_south_africa,
                 raw_context_source=context[:200] + "..." 
             )
             
             await Actor.push_data(record.model_dump())
             Actor.log.info("✅ Data pushed to dataset.")
-            await asyncio.to_thread(sync_to_supabase, record.model_dump(), "intelligence.gaming")
+            
+            # Dynamic Table Routing based on Niche
+            # Default to 'intelligence.gaming' if niche is gaming, else 'intelligence.<niche>'
+            table_name = f"intelligence.{config.niche}"
+            
+            await asyncio.to_thread(sync_to_supabase, record.model_dump(), table_name)
             
         except Exception as e:
             Actor.log.error(f"Analysis loop failed for {article.title}: {e}")
