@@ -1,4 +1,5 @@
 apify
+aiohttp
 langgraph
 langchain-core
 openai
