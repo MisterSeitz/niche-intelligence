@@ -86,6 +86,12 @@
             "description": "Optional: URL to post 'High Hype' alerts to Discord.",
             "sectionCaption": "Notifications"
         },
+        "forceRefresh": {
+            "title": "🔄 Force Refresh / Update All",
+            "type": "boolean",
+            "default": false,
+            "description": "If true, processes ALL articles even if they exist in DB (good for updating logic)."
+        },
         "runTestMode": {
             "title": "🧪 Run Test Mode (Zero Cost)",
             "type": "boolean",

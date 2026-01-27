@@ -9,6 +9,7 @@ class InputConfig(BaseModel):
     region: str = "wt-wt"
     timeLimit: str = "w"
     discordWebhookUrl: Optional[str] = None
+    forceRefresh: bool = False
     runTestMode: bool = False
 
 class ArticleCandidate(BaseModel):

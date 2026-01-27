@@ -115,7 +115,8 @@ async def process_article_node(state: WorkflowState):
 
     target_table = f"ai_intelligence.{article_niche}"
     
-    if not config.runTestMode:
+    # Check for existing unless Force Refresh is ON
+    if not config.runTestMode and not config.forceRefresh:
         exists = await asyncio.to_thread(check_url_exists, article.url, target_table)
         if exists:
             Actor.log.info(f"⏭️ Skipping duplicate: {article.title}")
