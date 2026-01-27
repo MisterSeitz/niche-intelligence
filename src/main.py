@@ -8,7 +8,9 @@ from .models import InputConfig, ArticleCandidate, DatasetRecord
 from .services.feeds import fetch_feed_data
 from .services.scraper import scrape_article_content
 from .services.search import brave_search_fallback
+from .services.search import brave_search_fallback
 from .services.llm import analyze_content
+from .services.notifications import send_discord_alert
 from supabase import create_client, Client
 
 # --- HELPER FUNCTION (Corrected for Schemas) ---
@@ -161,6 +163,12 @@ async def process_article_node(state: WorkflowState):
             Actor.log.info("✅ Data pushed to dataset.")
             
             await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
+            
+            await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
+            
+            # 5. 📢 NOTIFICATIONS
+            if config.discordWebhookUrl and "High Hype" in record.sentiment:
+                await send_discord_alert(config.discordWebhookUrl, record.model_dump())
             
         except Exception as e:
             Actor.log.error(f"Analysis loop failed for {article.title}: {e}")

@@ -233,7 +233,6 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
     # Logic to determine which niches to fetch
     target_niches = []
     if config.niche == "all":
-        # Exclude 'all' itself if it accidentally got into the map, keeps it clean
         target_niches = [k for k in NICHE_FEED_MAP.keys() if k != "all"]
     else:
         target_niches = [config.niche]
@@ -241,51 +240,43 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
     Actor.log.info(f"Fetching feeds for niches: {target_niches}")
 
     for niche in target_niches:
-        niche_urls = []
         feed_map = NICHE_FEED_MAP.get(niche, {})
         
         if config.source == "custom" and config.customFeedUrl:
-             # If custom, we probably just want to fetch that one URL, maybe associating it with the *primary* niche selected?
-             # But if niche is 'all', custom source is ambiguous. 
-             # Let's assume custom source applies to the PRIMARY run context only. 
-             # If niche='all', source='custom' is a bit weird. 
-             # Let's adhere to the schema: if source='custom', we just use that URL. The niche might be ambiguous.
-             # We'll just break loop and add it once if found.
              if not urls: # Only add once
                  urls.append({"url": config.customFeedUrl, "niche": config.niche if config.niche != "all" else "general"})
              break
         
         elif config.source == "all":
-            # Add all feeds for this niche
             for url in feed_map.values():
                 urls.append({"url": url, "niche": niche})
         
         elif config.source in feed_map:
-            # Specific source for this niche
             urls.append({"url": feed_map[config.source], "niche": niche})
 
-    Actor.log.info(f"Found {len(urls)} feeds to process.")
+    Actor.log.info(f"Found {len(urls)} feeds to process. Starting parallel fetch...")
 
     feed_data = []
     
-    # We might want to limit total articles or per-niche. 
-    # For now, let's fetch all and let the main loop limit by maxArticles *total* or we can just fetch.
-    # Be careful with 'all' niches -> lots of requests.
-    
-    for entry in urls:
+    # helper for parallel execution
+    def process_feed_url(entry):
         url = entry["url"]
         niche_context = entry["niche"]
-        
+        local_results = []
         try:
-            Actor.log.info(f"Fetching RSS: {url} [{niche_context}]")
+            # Actor.log.info(f"Fetching RSS: {url} [{niche_context}]") # Reduced noise
             feed = feedparser.parse(url)
             
             for entry_data in feed.entries:
                 # Basic validation
                 if not hasattr(entry_data, 'title') or not hasattr(entry_data, 'link'):
                     continue
+
+                # TIME FILTERING
+                if not is_recent(entry_data.get('published'), config.timeLimit):
+                    continue
                     
-                feed_data.append(
+                local_results.append(
                     ArticleCandidate(
                         title=entry_data.title,
                         url=entry_data.link,
@@ -297,14 +288,51 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                 )
         except Exception as e:
             Actor.log.error(f"Failed to fetch {url}: {e}")
+        return local_results
+
+    # Parallel Execution
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        futures = [executor.submit(process_feed_url, u) for u in urls]
+        for future in concurrent.futures.as_completed(futures):
+            feed_data.extend(future.result())
 
     # Deduplicate by URL
     seen = set()
     unique_articles = []
-    for art in feed_data: # Changed from 'articles' to 'feed_data'
+    for art in feed_data:
         if art.url not in seen:
             unique_articles.append(art)
             seen.add(art.url)
-            
-    # Limit global total
+    
+    Actor.log.info(f"✅ Fetched {len(unique_articles)} recent unique articles (after time filter).")
     return unique_articles[:config.maxArticles]
+
+# --- Helper ---
+from dateutil import parser
+from datetime import datetime, timedelta, timezone
+
+def is_recent(date_str: str, time_limit: str) -> bool:
+    """
+    Checks if article date is within the time limit.
+    """
+    if not date_str: return True # If no date, assume recent/relevant
+    
+    try:
+        pub_date = parser.parse(date_str)
+        if pub_date.tzinfo is None:
+            pub_date = pub_date.replace(tzinfo=timezone.utc)
+            
+        now = datetime.now(timezone.utc)
+        
+        limit_hours = 24 * 7 # Default 1 week
+        if time_limit == "24h": limit_hours = 24
+        elif time_limit == "48h": limit_hours = 48
+        elif time_limit == "1w": limit_hours = 24 * 7
+        elif time_limit == "1m": limit_hours = 24 * 30
+        
+        cutoff = now - timedelta(hours=limit_hours)
+        
+        return pub_date >= cutoff
+    except:
+        return True # If parse fails, include it just in case

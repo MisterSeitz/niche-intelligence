@@ -8,6 +8,7 @@ class InputConfig(BaseModel):
     maxArticles: int = 10
     region: str = "wt-wt"
     timeLimit: str = "w"
+    discordWebhookUrl: Optional[str] = None
     runTestMode: bool = False
 
 class ArticleCandidate(BaseModel):
