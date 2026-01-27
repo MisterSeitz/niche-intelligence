@@ -113,7 +113,7 @@ async def process_article_node(state: WorkflowState):
     if article_niche == 'all':
         article_niche = 'general' # Safe fallback
 
-    target_table = f"intelligence.{article_niche}"
+    target_table = f"ai_intelligence.{article_niche}"
     
     if not config.runTestMode:
         exists = await asyncio.to_thread(check_url_exists, article.url, target_table)
@@ -134,7 +134,7 @@ async def process_article_node(state: WorkflowState):
     # 3. STRATEGY: AI Analysis
     if context:
         try:
-            analysis = analyze_content(context, config.runTestMode)
+            analysis = analyze_content(context, niche=article_niche, run_test_mode=config.runTestMode)
             
             # 4. 💰 MONETIZATION 💰
             # We charge the user only when the 'summarize_snippets_with_llm' event succeeds.
@@ -156,13 +156,31 @@ async def process_article_node(state: WorkflowState):
                 city=analysis.city,
                 country=analysis.country,
                 is_south_africa=analysis.is_south_africa,
-                raw_context_source=context[:200] + "..." 
+                raw_context_source=context[:200] + "...",
+
+                # Niche Specific Mapping
+                game_studio=analysis.game_studio,
+                game_genre=analysis.game_genre,
+                platform=analysis.platform,
+                release_status=analysis.release_status,
+                
+                property_type=analysis.property_type,
+                listing_price=analysis.listing_price,
+                sqft=analysis.sqft,
+                market_status=analysis.market_status,
+                
+                company_name=analysis.company_name,
+                round_type=analysis.round_type,
+                funding_amount=analysis.funding_amount,
+                investor_list=analysis.investor_list,
+                
+                token_symbol=analysis.token_symbol,
+                market_trend=analysis.market_trend,
+                regulatory_impact=analysis.regulatory_impact
             )
             
             await Actor.push_data(record.model_dump())
             Actor.log.info("✅ Data pushed to dataset.")
-            
-            await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
             
             await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
             

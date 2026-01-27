@@ -28,7 +28,26 @@ class AnalysisResult(BaseModel):
     city: Optional[str] = Field(description="Specific city if mentioned")
     country: Optional[str] = Field(description="Country context")
     is_south_africa: bool = Field(description="True if content is relevant to South Africa")
+    # Niche Specific (Optional)
+    game_studio: Optional[str] = None
+    game_genre: Optional[str] = None
+    platform: Optional[List[str]] = None
+    release_status: Optional[str] = None
     
+    property_type: Optional[str] = None
+    listing_price: Optional[str] = None
+    sqft: Optional[str] = None
+    market_status: Optional[str] = None
+
+    company_name: Optional[str] = None
+    round_type: Optional[str] = None
+    funding_amount: Optional[str] = None
+    investor_list: Optional[List[str]] = None
+
+    token_symbol: Optional[str] = None
+    market_trend: Optional[str] = None
+    regulatory_impact: Optional[str] = None
+
 class DatasetRecord(BaseModel):
     niche: str
     source_feed: str
@@ -45,3 +64,23 @@ class DatasetRecord(BaseModel):
     country: Optional[str]
     is_south_africa: bool
     raw_context_source: Optional[str] = None
+
+    # Niche Specific (Optional)
+    game_studio: Optional[str] = None
+    game_genre: Optional[str] = None
+    platform: Optional[List[str]] = None
+    release_status: Optional[str] = None
+
+    property_type: Optional[str] = None
+    listing_price: Optional[str] = None
+    sqft: Optional[str] = None
+    market_status: Optional[str] = None
+
+    company_name: Optional[str] = None
+    round_type: Optional[str] = None
+    funding_amount: Optional[str] = None
+    investor_list: Optional[List[str]] = None
+
+    token_symbol: Optional[str] = None
+    market_trend: Optional[str] = None
+    regulatory_impact: Optional[str] = None

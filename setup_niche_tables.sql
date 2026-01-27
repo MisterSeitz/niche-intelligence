@@ -1,12 +1,12 @@
--- Create Schema
-CREATE SCHEMA IF NOT EXISTS intelligence;
+-- Create Schema (if strictly needed, though 'ai_intelligence' likely exists)
+CREATE SCHEMA IF NOT EXISTS ai_intelligence;
 
 -- Function to create the standard table structure for a niche
-CREATE OR REPLACE FUNCTION intelligence.create_niche_table(table_name text)
+CREATE OR REPLACE FUNCTION ai_intelligence.create_niche_table(table_name text)
 RETURNS void AS $$
 BEGIN
     EXECUTE format('
-        CREATE TABLE IF NOT EXISTS intelligence.%I (
+        CREATE TABLE IF NOT EXISTS ai_intelligence.%I (
             url text PRIMARY KEY,
             niche text,
             source_feed text,
@@ -29,17 +29,17 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Initialize Tables for all Niches
-SELECT intelligence.create_niche_table('gaming');
-SELECT intelligence.create_niche_table('crypto');
-SELECT intelligence.create_niche_table('tech');
-SELECT intelligence.create_niche_table('nuclear');
-SELECT intelligence.create_niche_table('education');
-SELECT intelligence.create_niche_table('foodtech');
-SELECT intelligence.create_niche_table('health');
-SELECT intelligence.create_niche_table('nutrition');
-SELECT intelligence.create_niche_table('luxury');
-SELECT intelligence.create_niche_table('realestate');
-SELECT intelligence.create_niche_table('retail');
-SELECT intelligence.create_niche_table('social');
-SELECT intelligence.create_niche_table('vc');
-SELECT intelligence.create_niche_table('web3');
+SELECT ai_intelligence.create_niche_table('gaming');
+SELECT ai_intelligence.create_niche_table('crypto');
+SELECT ai_intelligence.create_niche_table('tech');
+SELECT ai_intelligence.create_niche_table('nuclear');
+SELECT ai_intelligence.create_niche_table('education');
+SELECT ai_intelligence.create_niche_table('foodtech');
+SELECT ai_intelligence.create_niche_table('health');
+SELECT ai_intelligence.create_niche_table('nutrition');
+SELECT ai_intelligence.create_niche_table('luxury');
+SELECT ai_intelligence.create_niche_table('realestate');
+SELECT ai_intelligence.create_niche_table('retail');
+SELECT ai_intelligence.create_niche_table('social');
+SELECT ai_intelligence.create_niche_table('vc');
+SELECT ai_intelligence.create_niche_table('web3');
