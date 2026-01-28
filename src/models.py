@@ -9,6 +9,7 @@ class InputConfig(BaseModel):
     region: str = "wt-wt"
     timeLimit: str = "w"
     discordWebhookUrl: Optional[str] = None
+    enableBraveImageBackfill: bool = False
     forceRefresh: bool = False
     runTestMode: bool = False
 
@@ -19,6 +20,7 @@ class ArticleCandidate(BaseModel):
     published: Optional[str] = None
     original_summary: Optional[str] = None
     niche: Optional[str] = None
+    image_url: Optional[str] = None
 
 class AnalysisResult(BaseModel):
     sentiment: str = Field(description="Hype/Interest level")
@@ -55,11 +57,18 @@ class AnalysisResult(BaseModel):
     capacity: Optional[str] = None
     status: Optional[str] = None
 
+    # Motoring Specific
+    vehicle_make: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    vehicle_type: Optional[str] = None # SUV, Sedan, EV, Truck
+    price_range: Optional[str] = None
+
 class DatasetRecord(BaseModel):
     niche: str
     source_feed: str
     title: str
     url: str
+    image_url: Optional[str] = None
     published: Optional[str]
     method: str = Field(description="Extraction method: 'scraped' or 'search_fallback'")
     sentiment: str
@@ -96,3 +105,9 @@ class DatasetRecord(BaseModel):
     infrastructure_project: Optional[str] = None
     capacity: Optional[str] = None
     status: Optional[str] = None
+
+    # Motoring Specific
+    vehicle_make: Optional[str] = None
+    vehicle_model: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    price_range: Optional[str] = None

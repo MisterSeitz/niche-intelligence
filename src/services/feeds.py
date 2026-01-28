@@ -205,6 +205,21 @@ NICHE_FEED_MAP = {
         "saastr": "https://www.saastr.com/feed/",
         "crunchbase": "https://news.crunchbase.com/feed/",
         "finsmes": "https://www.finsmes.com/feed",
+    },
+
+    # 🚗 Motoring & Automotive
+    "motoring": {
+        "topauto": "https://topauto.co.za/feed",
+        "autoblog": "https://www.autoblog.com/.rss/feed/3d70fbb5-ef5e-44f3-a547-e60939496e82.xml",
+        "caranddriver": "https://www.caranddriver.com/rss/all.xml",
+        "motor1": "https://www.motor1.com/rss/news/all/",
+        "carmag": "https://www.carmag.co.za/feed/",
+        "carscoops": "https://www.carscoops.com/feed/",
+        "thedrive": "https://www.thedrive.com/feed",
+        "carbuzz": "https://carbuzz.com/feed",
+        "businesstech-motoring": "https://businesstech.co.za/news/motoring/feed/",
+        "iol-motoring": "https://iol.co.za/rss/iol/motoring/",
+        "carsite": "https://carsite.co.za/feed/",
     }
 }
 
@@ -220,13 +235,15 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                 url="https://example.com/breaking-news",
                 source="TestFeed",
                 published="Fri, 01 Dec 2025 12:00:00 GMT",
-                original_summary="A major event has occurred in the industry."
+                original_summary="A major event has occurred in the industry.",
+                image_url="https://placehold.co/600x400/png"
             ),
              ArticleCandidate(
                 title=f"[{config.niche.upper()}] New Innovation Revealed",
                 url="https://example.com/innovation",
                 source="TestFeed",
-                published="Fri, 01 Dec 2025 14:00:00 GMT"
+                published="Fri, 01 Dec 2025 14:00:00 GMT",
+                image_url="https://placehold.co/600x400/png"
             )
         ]
 
@@ -279,6 +296,35 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                 if not is_recent(entry_data.get('published'), config.timeLimit):
                     continue
                     
+                # IMAGE EXTRACTION
+                image_url = None
+                
+                # Check 1: Media Content (often in standard RSS)
+                if 'media_content' in entry_data:
+                    media = entry_data.media_content
+                    if isinstance(media, list) and len(media) > 0:
+                         image_url = media[0].get('url')
+
+                # Check 2: Media Thumbnail (YouTube/News style)
+                if not image_url and 'media_thumbnail' in entry_data:
+                    thumbnails = entry_data.media_thumbnail
+                    if isinstance(thumbnails, list) and len(thumbnails) > 0:
+                        image_url = thumbnails[0].get('url')
+
+                # Check 3: Enclosures (Podcasts/legacy)
+                if not image_url and 'enclosures' in entry_data:
+                     for enc in entry_data.enclosures:
+                         if enc.get('type', '').startswith('image/'):
+                             image_url = enc.get('href')
+                             break
+
+                # Check 4: Links (Atom style)
+                if not image_url and 'links' in entry_data:
+                     for link in entry_data.links:
+                         if link.get('type', '').startswith('image/'):
+                             image_url = link.get('href')
+                             break
+
                 local_results.append(
                     ArticleCandidate(
                         title=entry_data.title,
@@ -286,7 +332,8 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                         source=feed.feed.get('title', 'Unknown Feed'),
                         published=entry_data.get('published'),
                         original_summary=entry_data.get('summary') or entry_data.get('description'),
-                        niche=niche_context 
+                        niche=niche_context,
+                        image_url=image_url
                     )
                 )
         except Exception as e:

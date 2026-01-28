@@ -47,6 +47,14 @@ def get_niche_instructions(niche: str) -> str:
         - capacity: Capacity in MW or GW (e.g. "500MW").
         - status: Planned, Construction, Operational, Decommissioned.
         """
+    elif niche == "motoring":
+        return """
+        EXTRACT MOTORING INTEL:
+        - vehicle_make: Toyota, BMW, Ford, etc.
+        - vehicle_model: Corolla, M3, F-150.
+        - vehicle_type: SUV, Sedan, EV, Truck, Hatchback.
+        - price_range: Estimated cost or listed price (e.g. "R500,000", "$30k").
+        """
     return ""
 
 def analyze_content(content: str, niche: str = "general", run_test_mode: bool = False) -> AnalysisResult:

@@ -7,8 +7,7 @@ import os
 from .models import InputConfig, ArticleCandidate, DatasetRecord
 from .services.feeds import fetch_feed_data
 from .services.scraper import scrape_article_content
-from .services.search import brave_search_fallback
-from .services.search import brave_search_fallback
+from .services.search import brave_search_fallback, find_relevant_image
 from .services.llm import analyze_content
 from .services.notifications import send_discord_alert
 from supabase import create_client, Client
@@ -157,14 +156,22 @@ async def process_article_node(state: WorkflowState):
             return {"current_index": idx + 1}
 
     # 1. STRATEGY: Scrape First
-    context = scrape_article_content(article.url, config.runTestMode)
+    context, scraped_image = scrape_article_content(article.url, config.runTestMode)
     method = "scraped"
+    
+    # Image Priority: Feed > Scraped > Brave Backfill
+    final_image_url = article.image_url or scraped_image
 
     # 2. STRATEGY: Search Fallback
     if not context:
         Actor.log.info("⚠️ Scraping failed/blocked. Engaging Brave Search Fallback.")
         context = brave_search_fallback(article.title, config.runTestMode)
         method = "search_fallback"
+        
+    # 3. STRATEGY: Brave Image Backfill (If enabled and still no image)
+    if not final_image_url and config.enableBraveImageBackfill:
+         Actor.log.info(f"🖼️ Backfilling image for: {article.title}")
+         final_image_url = find_relevant_image(article.title, config.runTestMode)
 
     # 3. STRATEGY: AI Analysis
     if context:
@@ -191,6 +198,7 @@ async def process_article_node(state: WorkflowState):
                 source_feed=article.source,
                 title=article.title,
                 url=article.url,
+                image_url=final_image_url,
                 published=article.published,
                 method=method,
                 sentiment=analysis.sentiment,

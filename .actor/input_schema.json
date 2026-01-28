@@ -25,7 +25,8 @@
                 "retail",
                 "social",
                 "vc",
-                "web3"
+                "web3",
+                "motoring"
             ],
             "enumTitles": [
                 "🌎 All Niches (Global Aggregation)",
@@ -42,7 +43,8 @@
                 "🛍️ Retail & Ecommerce",
                 "📱 Social Media",
                 "🚀 VC & Startups",
-                "🌐 Web3"
+                "🌐 Web3",
+                "🚗 Motoring & Automotive"
             ],
             "description": "Select the specific vertical for intelligence gathering.",
             "sectionCaption": "Data Pipeline Settings"
@@ -99,6 +101,12 @@
             "prefill": false,
             "description": "If enabled, returns dummy data without calling external APIs. Used for integration testing.",
             "sectionCaption": "Maintenance & QA"
+        },
+        "enableBraveImageBackfill": {
+            "title": "🦁 Enable Brave Image Backfill",
+            "type": "boolean",
+            "default": false,
+            "description": "If scraped image is missing, use Brave Search to find a relevant image (Costs extra API credits)."
         }
     },
     "required": [
