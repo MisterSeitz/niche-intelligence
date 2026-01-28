@@ -59,7 +59,10 @@ def sync_to_supabase(record_dict: dict, full_table_name: str):
             query = supabase.table(table_name)
         
         # 2. Perform Upsert
-        data_to_upsert = record_dict.copy()
+        # Fix: exclude_none=True ensures we don't try to insert 'capacity: null' into 'motoring' table if that column is missing or if we want to be safe.
+        # However, for Upsert, we generally want to set fields. 
+        # But given we use a unified Model for divergent Tables, filtering Nones is the safest way to avoid "Column not found" errors for irrelevant niche fields.
+        data_to_upsert = {k: v for k, v in record_dict.items() if v is not None}
         # Remove any None values if necessary, or ensure schema allows nulls
         # record_dict is standard, so we assume it fits.
         
