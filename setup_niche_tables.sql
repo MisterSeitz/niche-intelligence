@@ -46,6 +46,12 @@ BEGIN
             market_trend text,
             regulatory_impact text,
             
+            -- Energy
+            energy_type text,
+            infrastructure_project text,
+            capacity text,
+            status text,
+            
             created_at timestamptz DEFAULT now()
         );
 
@@ -56,20 +62,19 @@ BEGIN
         GRANT ALL ON ai_intelligence.%I TO service_role;
         GRANT SELECT ON ai_intelligence.%I TO anon, authenticated, postgres;
 
-        -- 3. Policies (Drop first to be idempotent)
-        -- Public Read
-        DROP POLICY IF EXISTS "Public read " || %L ON ai_intelligence.%I;
-        CREATE POLICY "Public read " || %L ON ai_intelligence.%I FOR SELECT USING (true);
+        -- 3. Policies
+        DROP POLICY IF EXISTS "Public read %s" ON ai_intelligence.%I;
+        CREATE POLICY "Public read %s" ON ai_intelligence.%I FOR SELECT USING (true);
 
-        -- Service Write (Insert/Update/Delete)
-        DROP POLICY IF EXISTS "Service write " || %L ON ai_intelligence.%I;
-        CREATE POLICY "Service write " || %L ON ai_intelligence.%I FOR ALL TO service_role USING (true) WITH CHECK (true);
-
-    ', table_name, 
-       table_name, 
-       table_name, table_name, 
-       table_name, table_name, table_name, table_name,
-       table_name, table_name, table_name, table_name);
+        DROP POLICY IF EXISTS "Service write %s" ON ai_intelligence.%I;
+        CREATE POLICY "Service write %s" ON ai_intelligence.%I FOR ALL TO service_role USING (true) WITH CHECK (true);
+    ', 
+    table_name, 
+    table_name, 
+    table_name, table_name, 
+    table_name, table_name, table_name, table_name,
+    table_name, table_name, table_name, table_name
+    );
 END;
 $$ LANGUAGE plpgsql;
 
@@ -89,3 +94,4 @@ SELECT ai_intelligence.create_niche_table('social');
 SELECT ai_intelligence.create_niche_table('vc');
 SELECT ai_intelligence.create_niche_table('web3');
 SELECT ai_intelligence.create_niche_table('general');
+SELECT ai_intelligence.create_niche_table('energy');

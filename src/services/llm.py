@@ -39,6 +39,14 @@ def get_niche_instructions(niche: str) -> str:
         - market_trend: Bullish, Bearish, Neutral.
         - regulatory_impact: High, Medium, Low (regarding laws/sec).
         """
+    elif niche == "energy":
+        return """
+        EXTRACT ENERGY INTEL:
+        - energy_type: Solar, Wind, Hydro, Coal, Nuclear, Gas, Grid.
+        - infrastructure_project: Name of power plant or project.
+        - capacity: Capacity in MW or GW (e.g. "500MW").
+        - status: Planned, Construction, Operational, Decommissioned.
+        """
     return ""
 
 def analyze_content(content: str, niche: str = "general", run_test_mode: bool = False) -> AnalysisResult:
@@ -82,6 +90,7 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     2. Category: Thematic classification.
     3. Entities: Key organizations, people, or products.
     4. Geolocation: Identify the location context (City, Country). If relevant to South Africa, flag is_south_africa=True.
+    5. Detected Niche: If the article clearly belongs to a specific niche different from '{niche}', specify it (e.g. 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3'). Otherwise, leave null or repeat '{niche}'.
     
     {niche_instructions}
 

@@ -54,18 +54,22 @@ NICHE_FEED_MAP = {
         "futuramo": "https://futuramo.com/blog/feed/",
     },
 
-    # ⚛️ Nuclear Energy
-    "nuclear": {
+    # ⚡ Energy (General: Solar, Grid, Renewables)
+    "energy": {
         "dmre": "https://www.dmre.gov.za/DesktopModules/Blog/API/RSS/Get?tabid=161&moduleid=1292&blog=3",
-        "necsa": "https://www.necsa.co.za/feed",
         "eskom": "https://www.eskom.co.za/feed",
         "energy-council": "https://www.energycouncil.org.za/feed",
         "crses": "https://www.crses.sun.ac.za/feed",
         "gov-blog": "https://www.gov.za/blog-feeds",
         "gov-news": "https://www.gov.za/news-feed",
-        "nnr": "https://nnr.co.za/feed",
         "engineering-news": "https://www.engineeringnews.co.za/page/energy/feed",
         "esi-africa": "https://www.esi-africa.com/news/feed/",
+    },
+
+    # ⚛️ Nuclear Energy (Strictly Nuclear)
+    "nuclear": {
+        "necsa": "https://www.necsa.co.za/feed",
+        "nnr": "https://nnr.co.za/feed",
         "world-nuclear": "https://world-nuclear-news.org/?rss=feed",
         "iaea-news": "https://www.iaea.org/feeds/topnews",
         "iaea-press": "https://www.iaea.org/feeds/pressalerts",

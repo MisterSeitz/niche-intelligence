@@ -29,6 +29,7 @@ class AnalysisResult(BaseModel):
     city: Optional[str] = Field(description="Specific city if mentioned")
     country: Optional[str] = Field(description="Country context")
     is_south_africa: bool = Field(description="True if content is relevant to South Africa")
+    detected_niche: Optional[str] = Field(description="If the content clearly belongs to another niche (gaming, crypto, etc.), specify it here.")
     # Niche Specific (Optional)
     game_studio: Optional[str] = None
     game_genre: Optional[str] = None
@@ -48,6 +49,11 @@ class AnalysisResult(BaseModel):
     token_symbol: Optional[str] = None
     market_trend: Optional[str] = None
     regulatory_impact: Optional[str] = None
+
+    energy_type: Optional[str] = None
+    infrastructure_project: Optional[str] = None
+    capacity: Optional[str] = None
+    status: Optional[str] = None
 
 class DatasetRecord(BaseModel):
     niche: str
@@ -85,3 +91,8 @@ class DatasetRecord(BaseModel):
     token_symbol: Optional[str] = None
     market_trend: Optional[str] = None
     regulatory_impact: Optional[str] = None
+
+    energy_type: Optional[str] = None
+    infrastructure_project: Optional[str] = None
+    capacity: Optional[str] = None
+    status: Optional[str] = None

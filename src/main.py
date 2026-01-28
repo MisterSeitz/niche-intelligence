@@ -171,6 +171,16 @@ async def process_article_node(state: WorkflowState):
         try:
             analysis = analyze_content(context, niche=article_niche, run_test_mode=config.runTestMode)
             
+            # --- DYNAMIC ROUTING ---
+            # If the LLM detects a better niche, we re-route.
+            if analysis.detected_niche:
+                valid_niches = ['general', 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3']
+                clean_detected = analysis.detected_niche.lower().strip()
+                if clean_detected in valid_niches and clean_detected != article_niche:
+                    Actor.log.info(f"🔀 Re-routing article: '{article_niche}' -> '{clean_detected}'")
+                    article_niche = clean_detected
+                    target_table = f"ai_intelligence.{article_niche}"
+
             # 4. 💰 MONETIZATION 💰
             # We charge the user only when the 'summarize_snippets_with_llm' event succeeds.
             if not config.runTestMode:
@@ -211,7 +221,12 @@ async def process_article_node(state: WorkflowState):
                 
                 token_symbol=analysis.token_symbol,
                 market_trend=analysis.market_trend,
-                regulatory_impact=analysis.regulatory_impact
+                regulatory_impact=analysis.regulatory_impact,
+                
+                energy_type=analysis.energy_type,
+                infrastructure_project=analysis.infrastructure_project,
+                capacity=analysis.capacity,
+                status=analysis.status
             )
             
             await Actor.push_data(record.model_dump())
