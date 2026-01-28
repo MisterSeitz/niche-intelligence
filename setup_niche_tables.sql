@@ -48,7 +48,28 @@ BEGIN
             
             created_at timestamptz DEFAULT now()
         );
-    ', table_name);
+
+        -- 1. Enable RLS
+        ALTER TABLE ai_intelligence.%I ENABLE ROW LEVEL SECURITY;
+
+        -- 2. Grants
+        GRANT ALL ON ai_intelligence.%I TO service_role;
+        GRANT SELECT ON ai_intelligence.%I TO anon, authenticated, postgres;
+
+        -- 3. Policies (Drop first to be idempotent)
+        -- Public Read
+        DROP POLICY IF EXISTS "Public read " || %L ON ai_intelligence.%I;
+        CREATE POLICY "Public read " || %L ON ai_intelligence.%I FOR SELECT USING (true);
+
+        -- Service Write (Insert/Update/Delete)
+        DROP POLICY IF EXISTS "Service write " || %L ON ai_intelligence.%I;
+        CREATE POLICY "Service write " || %L ON ai_intelligence.%I FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+    ', table_name, 
+       table_name, 
+       table_name, table_name, 
+       table_name, table_name, table_name, table_name,
+       table_name, table_name, table_name, table_name);
 END;
 $$ LANGUAGE plpgsql;
 
