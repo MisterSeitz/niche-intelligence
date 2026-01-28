@@ -156,7 +156,6 @@ NICHE_FEED_MAP = {
         "forbes_realestate": "https://www.forbes.com/real-estate/feed/", 
         "worldpropertyjournal": "https://www.worldpropertyjournal.com/feed.xml",
         "biggerpockets": "https://www.biggerpockets.com/blog/feed",
-        "realwealth": "https://realwealth.com/feed/",
         "sothebys": "https://www.sothebysrealty.com/extraordinary-living-blog/feed/",
         "luxurypresence": "https://www.luxurypresence.com/blogs/category/news-press/feed/",
         "therealdeal_ny": "https://therealdeal.com/new-york/feed/",
