@@ -40,21 +40,46 @@ def sync_to_supabase(record_dict: dict, full_table_name: str):
         supabase: Client = create_client(url, key)
         
         # 1. Parse Schema and Table
+        schema_name = "public"
+        table_name = full_table_name
+        
         if "." in full_table_name:
             schema_name, table_name = full_table_name.split(".", 1)
+        
+        # Strip whitespace just in case
+        schema_name = schema_name.strip()
+        table_name = table_name.strip()
+
+        Actor.log.info(f"🔄 Syncing to Supabase - Schema: '{schema_name}', Table: '{table_name}'")
+
+        if schema_name != "public":
             # Use the .schema() method to switch context
             query = supabase.schema(schema_name).table(table_name)
         else:
             # Default to public schema
-            query = supabase.table(full_table_name)
+            query = supabase.table(table_name)
         
         # 2. Perform Upsert
-        query.upsert(record_dict, on_conflict="url").execute()
+        data_to_upsert = record_dict.copy()
+        # Remove any None values if necessary, or ensure schema allows nulls
+        # record_dict is standard, so we assume it fits.
         
-        Actor.log.info(f"🔄 All processes complete for {full_table_name}: {record_dict.get('title', 'No Title')[:30]}...")
-        
+        try:
+            query.upsert(data_to_upsert, on_conflict="url").execute()
+            Actor.log.info(f"✅ Upsert successful for {full_table_name}: {record_dict.get('title', 'No Title')[:30]}...")
+        except Exception as upsert_err:
+             # Extract error details if possible
+            Actor.log.error(f"❌ Upsert Error Details: {upsert_err}")
+            if hasattr(upsert_err, 'code'):
+                 Actor.log.error(f"Error Code: {upsert_err.code}")
+            if hasattr(upsert_err, 'details'):
+                 Actor.log.error(f"Error Details: {upsert_err.details}")
+            if hasattr(upsert_err, 'hint'):
+                 Actor.log.error(f"Error Hint: {upsert_err.hint}")
+            raise upsert_err
+
     except Exception as e:
-        Actor.log.error(f"❌ Supabase Sync Failed: {e}")
+        Actor.log.error(f"❌ Supabase Sync Failed Main Block: {e}")
 
 def check_url_exists(url: str, full_table_name: str) -> bool:
     """Checks if a URL already exists in the target table."""
@@ -66,17 +91,26 @@ def check_url_exists(url: str, full_table_name: str) -> bool:
 
     try:
         supabase: Client = create_client(api_url, key)
+        
+        schema_name = "public"
+        table_name = full_table_name
+        
         if "." in full_table_name:
             schema_name, table_name = full_table_name.split(".", 1)
+            
+        schema_name = schema_name.strip()
+        table_name = table_name.strip()
+            
+        if schema_name != "public":
             query = supabase.schema(schema_name).table(table_name)
         else:
-            query = supabase.table(full_table_name)
+            query = supabase.table(table_name)
             
         # Check for existence
         response = query.select("url").eq("url", url).execute()
         return len(response.data) > 0
     except Exception as e:
-        Actor.log.warning(f"⚠️ Failed to check duplicate for {url}: {e}")
+        Actor.log.warning(f"⚠️ Failed to check duplicate for {url} in {schema_name}.{table_name}: {e}")
         return False
 
 # --- State Definition ---

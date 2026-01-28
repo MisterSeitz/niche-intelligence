@@ -43,3 +43,4 @@ SELECT ai_intelligence.create_niche_table('retail');
 SELECT ai_intelligence.create_niche_table('social');
 SELECT ai_intelligence.create_niche_table('vc');
 SELECT ai_intelligence.create_niche_table('web3');
+SELECT ai_intelligence.create_niche_table('general');
