@@ -22,6 +22,30 @@ BEGIN
             country text,
             is_south_africa boolean DEFAULT false,
             raw_context_source text,
+            
+            -- Gaming
+            game_studio text,
+            game_genre text,
+            platform text[],
+            release_status text,
+            
+            -- Real Estate
+            property_type text,
+            listing_price text,
+            sqft text,
+            market_status text,
+            
+            -- VC / Startup
+            company_name text,
+            round_type text,
+            funding_amount text,
+            investor_list text[],
+            
+            -- Crypto
+            token_symbol text,
+            market_trend text,
+            regulatory_impact text,
+            
             created_at timestamptz DEFAULT now()
         );
     ', table_name);

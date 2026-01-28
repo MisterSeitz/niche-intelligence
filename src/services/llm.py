@@ -95,7 +95,7 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
 
     # We use standard OpenAI client for Alibaba Qwen compatibility
     client = OpenAI(
-        base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        base_url="https://coding-intl.dashscope.aliyuncs.com/v1",
         api_key=api_key,
     )
 
@@ -104,7 +104,7 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     # Primary Provider: Alibaba Cloud Qwen
     try:
         completion = client.chat.completions.create(
-            model="qwen-turbo",
+            model="qwen3-coder-plus",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
