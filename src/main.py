@@ -151,6 +151,10 @@ async def process_article_node(state: WorkflowState):
 
     target_table = f"ai_intelligence.{article_niche}"
     
+    # MAPPING: 'general' niche -> 'entries' table (Legacy View Compatibility)
+    if article_niche == 'general':
+        target_table = "ai_intelligence.entries"
+    
     # Check for existing unless Force Refresh is ON
     if not config.runTestMode and not config.forceRefresh:
         exists = await asyncio.to_thread(check_url_exists, article.url, target_table)
