@@ -330,7 +330,7 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                         title=entry_data.title,
                         url=entry_data.link,
                         source=feed.feed.get('title', 'Unknown Feed'),
-                        published=entry_data.get('published'),
+                        published=normalize_date(entry_data.get('published')),
                         original_summary=entry_data.get('summary') or entry_data.get('description'),
                         niche=niche_context,
                         image_url=image_url
@@ -386,3 +386,14 @@ def is_recent(date_str: str, time_limit: str) -> bool:
         return pub_date >= cutoff
     except:
         return True # If parse fails, include it just in case
+
+def normalize_date(date_str: str) -> str:
+    """Standardizes date string to ISO 8601."""
+    if not date_str: return None
+    try:
+        dt = parser.parse(date_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
+    except Exception:
+        return date_str # Return original if parse fails

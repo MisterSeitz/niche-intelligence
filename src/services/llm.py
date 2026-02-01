@@ -95,7 +95,7 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
 
     MANDATORY EXTRACTION:
     1. Sentiment: Is this 'High Hype' (viral/major news) or 'Low Hype'?
-    2. Category: Thematic classification.
+    2. Category: Thematic classification (Technology, Business, Politics, Sports, etc.). DO NOT use 'Crime' (crime news belongs to a different stream).
     3. Entities: Key organizations, people, or products.
     4. Geolocation: Identify the location context (City, Country). If relevant to South Africa, flag is_south_africa=True.
     5. Detected Niche: If the article clearly belongs to a specific niche different from '{niche}', specify it (e.g. 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3'). Otherwise, leave null or repeat '{niche}'.
