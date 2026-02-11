@@ -1,18 +1,24 @@
 {
     "actorOutputSchemaVersion": 1,
-    "title": "AI Gaming News Intelligence Output",
+    "title": "Unified Intelligence Pipeline Output",
     "type": "object",
     "properties": {
         "dashboard": {
             "type": "string",
-            "title": "📊 Intelligence Dashboard",
-            "description": "A curated table view of the analyzed gaming news, including sentiment and AI summaries.",
+            "title": "📊 Unified Dashboard",
+            "description": "A curated table view of intelligence across all niches (Gaming, Politics, Crime, Crypto, etc.).",
             "template": "{{links.apiDefaultDatasetUrl}}/items?view=overview"
+        },
+        "crime_view": {
+            "type": "string",
+            "title": "🚨 Crime & Incidents View",
+            "description": "Dedicated view for safety incidents and crime reports.",
+            "template": "{{links.apiDefaultDatasetUrl}}/items?view=incidents"
         },
         "raw_dataset": {
             "type": "string",
             "title": "📂 Raw Data (JSON)",
-            "description": "The complete dataset containing all scraped fields, metadata, and full analysis results.",
+            "description": "The complete dataset containing all scraped fields, rich entities (People, Orgs), and full analysis results.",
             "template": "{{links.apiDefaultDatasetUrl}}/items"
         }
     }

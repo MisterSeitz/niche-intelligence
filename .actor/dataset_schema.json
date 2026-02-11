@@ -4,6 +4,14 @@
         "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
+            "niche": {
+                "type": "string",
+                "title": "Niche"
+            },
+            "source_feed": {
+                "type": "string",
+                "title": "Source"
+            },
             "title": {
                 "type": "string",
                 "title": "Headline"
@@ -11,65 +19,299 @@
             "url": {
                 "type": "string",
                 "format": "uri",
-                "title": "Article URL"
+                "title": "URL"
             },
-            "source_feed": {
-                "type": "string",
-                "title": "Source"
+            "image_url": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "format": "uri",
+                "title": "Image"
             },
             "published": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "format": "date-time",
                 "title": "Date"
+            },
+            "method": {
+                "type": "string",
+                "enum": [
+                    "scraped",
+                    "search_fallback"
+                ]
+            },
+            "sentiment": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Hype/Sentiment"
+            },
+            "category": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Category"
+            },
+            "key_entities": {
+                "type": "array",
+                "title": "Entities",
+                "items": {
+                    "type": "string"
+                }
             },
             "ai_summary": {
                 "type": "string",
                 "title": "AI Insight",
-                "description": "2-sentence executive summary."
+                "description": "Executive summary."
             },
-            "sentiment": {
-                "type": ["string", "null"],
-                "title": "Hype Rating",
-                "description": "E.g., High Hype, Moderate Interest."
+            "location": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Location"
             },
-            "category": {
-                "type": ["string", "null"],
-                "title": "Category",
-                "description": "E.g., Game Review, Esports Results."
+            "city": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "City"
             },
-            "key_entities": {
-                "type": "array",
-                "title": "Key Entities",
-                "items": {
-                    "type": "string"
-                },
-                "default": []
+            "country": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Country"
             },
-            "method": {
-                "type": "string",
-                "enum": ["scraped", "search_fallback"],
-                "description": "Traceability: Did we scrape the HTML or use Search API?"
+            "is_south_africa": {
+                "type": "boolean",
+                "title": "Is RSA?"
             },
             "raw_context_source": {
-                "type": ["string", "null"],
-                "description": "Truncated raw text used for analysis (debugging)."
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "description": "Truncated source text."
+            },
+            "incidents": {
+                "type": "array",
+                "title": "Incidents",
+                "items": {
+                    "type": "object"
+                }
+            },
+            "people": {
+                "type": "array",
+                "title": "People",
+                "items": {
+                    "type": "object"
+                }
+            },
+            "organizations": {
+                "type": "array",
+                "title": "Organizations",
+                "items": {
+                    "type": "object"
+                }
+            },
+            "game_studio": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Game Studio"
+            },
+            "game_genre": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Genre"
+            },
+            "platform": {
+                "type": [
+                    "array",
+                    "null"
+                ],
+                "title": "Platform",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "release_status": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Release Status"
+            },
+            "property_type": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Prop Type"
+            },
+            "listing_price": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Price"
+            },
+            "sqft": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Size"
+            },
+            "market_status": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Market Status"
+            },
+            "company_name": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Company"
+            },
+            "round_type": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Round"
+            },
+            "funding_amount": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Funding"
+            },
+            "investor_list": {
+                "type": [
+                    "array",
+                    "null"
+                ],
+                "title": "Investors",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "token_symbol": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Token"
+            },
+            "market_trend": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Trend"
+            },
+            "regulatory_impact": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Reg Impact"
+            },
+            "energy_type": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Energy Type"
+            },
+            "infrastructure_project": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Project"
+            },
+            "capacity": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Capacity"
+            },
+            "status": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Status"
+            },
+            "vehicle_make": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Make"
+            },
+            "vehicle_model": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Model"
+            },
+            "vehicle_type": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Type"
+            },
+            "price_range": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Price Range"
             }
         },
-        "required": ["title", "url", "method", "ai_summary"]
+        "required": [
+            "title",
+            "url",
+            "method",
+            "ai_summary",
+            "niche"
+        ]
     },
     "views": {
         "overview": {
-            "title": "📊 Intelligence Dashboard",
-            "description": "Strategic view of Gaming/Esports news analysis.",
+            "title": "📊 Unified Intelligence Dashboard",
+            "description": "Strategic view of intelligence across all niches.",
             "transformation": {
                 "fields": [
+                    "niche",
                     "sentiment",
-                    "category",
                     "title",
                     "ai_summary",
                     "key_entities",
-                    "source_feed",
-                    "method",
+                    "location",
+                    "published",
                     "url"
                 ],
                 "desc": true
@@ -77,12 +319,12 @@
             "display": {
                 "component": "table",
                 "properties": {
-                    "sentiment": {
-                        "label": "🔥 Hype",
+                    "niche": {
+                        "label": "🎯 Niche",
                         "format": "text"
                     },
-                    "category": {
-                        "label": "🏷️ Category",
+                    "sentiment": {
+                        "label": "🔥 Hype/Risk",
                         "format": "text"
                     },
                     "title": {
@@ -90,23 +332,59 @@
                         "format": "text"
                     },
                     "ai_summary": {
-                        "label": "💡 AI Analysis",
+                        "label": "💡 Insight",
                         "format": "text"
                     },
                     "key_entities": {
-                        "label": "🎮 Entities",
+                        "label": "🏢 Entities",
                         "format": "array"
                     },
-                    "source_feed": {
-                        "label": "Source",
+                    "location": {
+                        "label": "📍 Location",
                         "format": "text"
                     },
-                    "method": {
-                        "label": "Method",
-                        "format": "text"
+                    "published": {
+                        "label": "📅 Date",
+                        "format": "date"
                     },
                     "url": {
-                        "label": "Link",
+                        "label": "🔗 Link",
+                        "format": "link"
+                    }
+                }
+            }
+        },
+        "incidents": {
+            "title": "🚨 Crime & Safety Feed",
+            "description": "Filtered view for Crime and Politics incidents.",
+            "transformation": {
+                "fields": [
+                    "niche",
+                    "title",
+                    "incidents",
+                    "location",
+                    "url"
+                ],
+                "desc": true
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "niche": {
+                        "label": "Niche"
+                    },
+                    "title": {
+                        "label": "Report"
+                    },
+                    "incidents": {
+                        "label": "Incidents Data",
+                        "format": "json"
+                    },
+                    "location": {
+                        "label": "Location"
+                    },
+                    "url": {
+                        "label": "Source",
                         "format": "link"
                     }
                 }
