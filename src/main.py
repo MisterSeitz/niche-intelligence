@@ -10,110 +10,7 @@ from .services.scraper import scrape_article_content
 from .services.search import brave_search_fallback, find_relevant_image
 from .services.llm import analyze_content
 from .services.notifications import send_discord_alert
-from supabase import create_client, Client
-
-# --- HELPER FUNCTION (Corrected for Schemas) ---
-def sync_to_supabase(record_dict: dict, full_table_name: str): 
-    """
-    Push data to a specific Supabase table, handling custom schemas.
-    Args:
-        record_dict: The data to insert.
-        full_table_name: Format 'schema.table' (e.g., 'intelligence.web3') or just 'table'.
-    """
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-
-    """
-    if key:
-        if key.startswith("sbp_") or key.startswith("eyJ"): # eyJ usually implies the old anon JWT
-            Actor.log.warning(f"⚠️ POTENTIAL KEY ERROR: Your key starts with '{key[:7]}...'. This looks like a PUBLIC key. You need the SECRET key (starts with 'sb_secret_' or is the 'service_role' key).")
-        else:
-            Actor.log.info(f"🔑 Key check passed: Starts with '{key[:7]}...'")
-    """
-    
-    if not url or not key:
-        Actor.log.warning("⚠️ Supabase credentials missing. Skipping sync.")
-        return
-
-    try:
-        supabase: Client = create_client(url, key)
-        
-        # 1. Parse Schema and Table
-        schema_name = "public"
-        table_name = full_table_name
-        
-        if "." in full_table_name:
-            schema_name, table_name = full_table_name.split(".", 1)
-        
-        # Strip whitespace just in case
-        schema_name = schema_name.strip()
-        table_name = table_name.strip()
-
-        Actor.log.info(f"🔄 Syncing to Supabase - Schema: '{schema_name}', Table: '{table_name}'")
-
-        if schema_name != "public":
-            # Use the .schema() method to switch context
-            query = supabase.schema(schema_name).table(table_name)
-        else:
-            # Default to public schema
-            query = supabase.table(table_name)
-        
-        # 2. Perform Upsert
-        # Fix: exclude_none=True ensures we don't try to insert 'capacity: null' into 'motoring' table if that column is missing or if we want to be safe.
-        # However, for Upsert, we generally want to set fields. 
-        # But given we use a unified Model for divergent Tables, filtering Nones is the safest way to avoid "Column not found" errors for irrelevant niche fields.
-        data_to_upsert = {k: v for k, v in record_dict.items() if v is not None}
-        # Remove any None values if necessary, or ensure schema allows nulls
-        # record_dict is standard, so we assume it fits.
-        
-        try:
-            query.upsert(data_to_upsert, on_conflict="url").execute()
-            Actor.log.info(f"✅ Upsert successful for {full_table_name}: {record_dict.get('title', 'No Title')[:30]}...")
-        except Exception as upsert_err:
-             # Extract error details if possible
-            Actor.log.error(f"❌ Upsert Error Details: {upsert_err}")
-            if hasattr(upsert_err, 'code'):
-                 Actor.log.error(f"Error Code: {upsert_err.code}")
-            if hasattr(upsert_err, 'details'):
-                 Actor.log.error(f"Error Details: {upsert_err.details}")
-            if hasattr(upsert_err, 'hint'):
-                 Actor.log.error(f"Error Hint: {upsert_err.hint}")
-            raise upsert_err
-
-    except Exception as e:
-        Actor.log.error(f"❌ Supabase Sync Failed Main Block: {e}")
-
-def check_url_exists(url: str, full_table_name: str) -> bool:
-    """Checks if a URL already exists in the target table."""
-    api_url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
-    
-    if not api_url or not key:
-        return False
-
-    try:
-        supabase: Client = create_client(api_url, key)
-        
-        schema_name = "public"
-        table_name = full_table_name
-        
-        if "." in full_table_name:
-            schema_name, table_name = full_table_name.split(".", 1)
-            
-        schema_name = schema_name.strip()
-        table_name = table_name.strip()
-            
-        if schema_name != "public":
-            query = supabase.schema(schema_name).table(table_name)
-        else:
-            query = supabase.table(table_name)
-            
-        # Check for existence
-        response = query.select("url").eq("url", url).execute()
-        return len(response.data) > 0
-    except Exception as e:
-        Actor.log.warning(f"⚠️ Failed to check duplicate for {url} in {schema_name}.{table_name}: {e}")
-        return False
+from .services.ingestor import SupabaseIngestor
 
 # --- State Definition ---
 class WorkflowState(TypedDict):
@@ -142,22 +39,19 @@ async def process_article_node(state: WorkflowState):
     article = articles[idx]
     Actor.log.info(f"👉 [{idx+1}/{len(articles)}] Processing: {article.title}")
 
+    # Initialize Ingestor
+    ingestor = SupabaseIngestor()
+
     # 0. STRATEGY: Deduplication Check
     # Determine table based on article niche or config niche
     article_niche = getattr(article, 'niche', None) or config.niche
-    # If niche is 'all', specific article niche should be set. If not, fallback to config (which shouldn't happen if feeds.py is right)
+    # If niche is 'all', specific article niche should be set. If not, fallback to general.
     if article_niche == 'all':
-        article_niche = 'general' # Safe fallback
+        article_niche = 'general' 
 
-    target_table = f"ai_intelligence.{article_niche}"
-    
-    # MAPPING: 'general' niche -> 'entries' table (Legacy View Compatibility)
-    if article_niche == 'general':
-        target_table = "ai_intelligence.entries"
-    
     # Check for existing unless Force Refresh is ON
     if not config.runTestMode and not config.forceRefresh:
-        exists = await asyncio.to_thread(check_url_exists, article.url, target_table)
+        exists = ingestor.check_exists(article.url, niche=article_niche)
         if exists:
             Actor.log.info(f"⏭️ Skipping duplicate: {article.title}")
             return {"current_index": idx + 1}
@@ -188,18 +82,20 @@ async def process_article_node(state: WorkflowState):
             # --- DYNAMIC ROUTING ---
             # If the LLM detects a better niche, we re-route.
             if analysis.detected_niche:
-                valid_niches = ['general', 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3']
+                valid_niches = ['general', 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'brics', 'politics', 'crime', 'sport', 'business', 'semiconductors']
                 clean_detected = analysis.detected_niche.lower().strip()
                 if clean_detected in valid_niches and clean_detected != article_niche:
                     Actor.log.info(f"🔀 Re-routing article: '{article_niche}' -> '{clean_detected}'")
                     article_niche = clean_detected
-                    target_table = f"ai_intelligence.{article_niche}"
-
+            
             # 4. 💰 MONETIZATION 💰
             # We charge the user only when the 'summarize_snippets_with_llm' event succeeds.
             if not config.runTestMode:
-                await Actor.charge(event_name="summarize_snippets_with_llm") #
+                await Actor.charge(event_name="summarize_snippets_with_llm") 
 
+            # 5. DATASET & SUPABASE INGESTION
+            
+            # Create Dataset Record (Standardized)
             record = DatasetRecord(
                 niche=article_niche, # Use specific niche
                 source_feed=article.source,
@@ -217,6 +113,11 @@ async def process_article_node(state: WorkflowState):
                 country=analysis.country,
                 is_south_africa=analysis.is_south_africa,
                 raw_context_source=context[:200] + "...",
+
+                # Rich Data (Dicts for dataset compatibility)
+                incidents=[i.model_dump() for i in analysis.incidents] if analysis.incidents else None,
+                people=[p.model_dump() for p in analysis.people] if analysis.people else None,
+                organizations=[o.model_dump() for o in analysis.organizations] if analysis.organizations else None,
 
                 # Niche Specific Mapping
                 game_studio=analysis.game_studio,
@@ -241,15 +142,22 @@ async def process_article_node(state: WorkflowState):
                 energy_type=analysis.energy_type,
                 infrastructure_project=analysis.infrastructure_project,
                 capacity=analysis.capacity,
-                status=analysis.status
+                status=analysis.status,
+
+                # Motoring
+                vehicle_make=analysis.vehicle_make,
+                vehicle_model=analysis.vehicle_model,
+                vehicle_type=analysis.vehicle_type,
+                price_range=analysis.price_range
             )
             
+            # Push to Apify Dataset
             await Actor.push_data(record.model_dump())
-            Actor.log.info("✅ Data pushed to dataset.")
             
-            await asyncio.to_thread(sync_to_supabase, record.model_dump(), target_table)
+            # Ingest to Supabase (Intelligent Routing)
+            await ingestor.ingest(analysis, article)
             
-            # 5. 📢 NOTIFICATIONS
+            # 6. 📢 NOTIFICATIONS
             if config.discordWebhookUrl and "High Hype" in record.sentiment:
                 await send_discord_alert(config.discordWebhookUrl, record.model_dump())
             

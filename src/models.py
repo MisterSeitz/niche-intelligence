@@ -1,5 +1,5 @@
 from pydantic import BaseModel, HttpUrl, Field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 
 class InputConfig(BaseModel):
     niche: str = "gaming"
@@ -22,6 +22,24 @@ class ArticleCandidate(BaseModel):
     niche: Optional[str] = None
     image_url: Optional[str] = None
 
+class Incident(BaseModel):
+    type: str = Field(description="Type of incident (e.g. Robbery, Protest)")
+    description: str
+    location: Optional[str] = None
+    date: Optional[str] = None
+    severity: int = Field(default=1, description="Severity 1-3")
+
+class Person(BaseModel):
+    name: str
+    role: str = Field(description="Suspect, Victim, Official, etc.")
+    status: Optional[str] = Field(description="Wanted, Arrested, Missing, etc.")
+    details: Optional[str] = None
+
+class Organization(BaseModel):
+    name: str
+    type: str = Field(description="Syndicate, Gang, Company, Govt")
+    details: Optional[str] = None
+
 class AnalysisResult(BaseModel):
     sentiment: str = Field(description="Hype/Interest level")
     category: str = Field(description="Thematic category")
@@ -32,7 +50,15 @@ class AnalysisResult(BaseModel):
     country: Optional[str] = Field(description="Country context")
     is_south_africa: bool = Field(description="True if content is relevant to South Africa")
     detected_niche: Optional[str] = Field(description="If the content clearly belongs to another niche (gaming, crypto, etc.), specify it here.")
-    # Niche Specific (Optional)
+    
+    # Rich Intelligence (New)
+    incidents: Optional[List[Incident]] = Field(default_factory=list)
+    people: Optional[List[Person]] = Field(default_factory=list)
+    organizations: Optional[List[Organization]] = Field(default_factory=list)
+    
+    # Niche Specific
+    niche_data: Optional[Dict[str, Any]] = None # flexible dict for specific niche fields
+
     game_studio: Optional[str] = None
     game_genre: Optional[str] = None
     platform: Optional[List[str]] = None
@@ -80,6 +106,11 @@ class DatasetRecord(BaseModel):
     country: Optional[str]
     is_south_africa: bool
     raw_context_source: Optional[str] = None
+
+    # Rich data for export/debugging if needed
+    incidents: Optional[List[Dict]] = None
+    people: Optional[List[Dict]] = None
+    organizations: Optional[List[Dict]] = None
 
     # Niche Specific (Optional)
     game_studio: Optional[str] = None

@@ -8,6 +8,8 @@ from langchain_core.prompts import ChatPromptTemplate
 
 # --- HELPER: Niche Prompts ---
 def get_niche_instructions(niche: str) -> str:
+    niche = niche.lower()
+    
     if niche == "gaming":
         return """
         EXTRACT GAMING INTEL:
@@ -15,6 +17,24 @@ def get_niche_instructions(niche: str) -> str:
         - game_genre: E.g., RPG, FPS, Strategy.
         - platform: List of platforms (PC, PS5, Xbox, Switch, Mobile).
         - release_status: Announced, Released, Delayed, Cancelled.
+        """
+    elif niche == "crime":
+        return """
+        EXTRACT CRIME & SAFETY INTEL:
+        - incidents: List of specific events (Robbery, Protest, Hijacking) with:
+            - type: The crime/incident type.
+            - description: Brief summary of what happened.
+            - location: Specific street/suburb/city.
+            - severity: 1 (Minor) to 3 (Critical/Fatal).
+        - people: Suspects (Wanted/Arrested), Victims, Officials.
+        - organizations: Gangs (e.g. 'Fast Guns'), Security Companies, Police Units.
+        """
+    elif niche == "politics" or niche == "gov":
+        return """
+        EXTRACT POLITICAL INTEL:
+        - people: Politicians, Government Officials.
+        - organizations: Political Parties (ANC, DA, EFF), Government Departments.
+        - sentiment: Analyze if this is positive/negative for the ruling party or opposition.
         """
     elif niche == "realestate":
         return """
@@ -46,6 +66,7 @@ def get_niche_instructions(niche: str) -> str:
         - infrastructure_project: Name of power plant or project.
         - capacity: Capacity in MW or GW (e.g. "500MW").
         - status: Planned, Construction, Operational, Decommissioned.
+        - organizations: Energy companies (Eskom), IPPs.
         """
     elif niche == "motoring":
         return """
@@ -55,7 +76,8 @@ def get_niche_instructions(niche: str) -> str:
         - vehicle_type: SUV, Sedan, EV, Truck, Hatchback.
         - price_range: Estimated cost or listed price (e.g. "R500,000", "$30k").
         """
-    return ""
+    
+    return "Extract People and Organizations mentioned."
 
 def analyze_content(content: str, niche: str = "general", run_test_mode: bool = False) -> AnalysisResult:
     """
@@ -95,11 +117,17 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
 
     MANDATORY EXTRACTION:
     1. Sentiment: Is this 'High Hype' (viral/major news) or 'Low Hype'?
-    2. Category: Thematic classification (Technology, Business, Politics, Sports, etc.). DO NOT use 'Crime' (crime news belongs to a different stream).
+    2. Category: Thematic classification (Technology, Business, Politics, Sports, etc.).
     3. Entities: Key organizations, people, or products.
     4. Geolocation: Identify the location context (City, Country). If relevant to South Africa, flag is_south_africa=True.
-    5. Detected Niche: If the article clearly belongs to a specific niche different from '{niche}', specify it (e.g. 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3'). Otherwise, leave null or repeat '{niche}'.
+    5. Detected Niche: If the article clearly belongs to a specific niche different from '{niche}', specify it (e.g. 'gaming', 'crypto', 'tech', 'nuclear', 'energy', 'education', 'foodtech', 'health', 'luxury', 'realestate', 'retail', 'social', 'vc', 'web3', 'politics', 'crime', 'sport'). Otherwise, leave null or repeat '{niche}'.
     
+    RICH INTELLIGENCE (Populate these lists if applicable):
+    - incidents: detailed list of crime/safety incidents (type, description, severity 1-3 from context).
+    - people: detailed list of key figures (name, role, status e.g. 'Suspect', 'Official').
+    - organizations: detailed list of companies/groups (name, type e.g. 'Syndicate', 'Party').
+
+    NICHE SPECIFIC INSTRUCTIONS:
     {niche_instructions}
 
     OUTPUT FORMAT:
@@ -107,19 +135,24 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     """
 
     api_key = os.getenv("ALIBABA_CLOUD_API_KEY")
-    if not api_key:
-        raise ValueError("ALIBABA_CLOUD_API_KEY missing in Secrets.")
+    # if not api_key:
+    #     raise ValueError("ALIBABA_CLOUD_API_KEY missing in Secrets.")
 
     # We use standard OpenAI client for Alibaba Qwen compatibility
-    client = OpenAI(
-        base_url="https://coding-intl.dashscope.aliyuncs.com/v1",
-        api_key=api_key,
-    )
+    # If unavailable, we handle via exception below
+    client = None
+    if api_key:
+        client = OpenAI(
+            base_url="https://coding-intl.dashscope.aliyuncs.com/v1",
+            api_key=api_key,
+        )
 
     llm_content = None
     
     # Primary Provider: Alibaba Cloud Qwen
     try:
+        if not client: raise ValueError("Skipping Alibaba (No Key)")
+        
         completion = client.chat.completions.create(
             model="qwen3-coder-plus",
             messages=[
@@ -131,13 +164,15 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
         llm_content = completion.choices[0].message.content
 
     except Exception as e:
-        Actor.log.warning(f"⚠️ Alibaba Cloud failed: {e}. Falling back to OpenRouter (Free Tier)...")
+        Actor.log.warning(f"⚠️ Alibaba Cloud failed/skipped: {e}. Falling back to OpenRouter...")
         
         try:
             # Fallback Provider: OpenRouter (Free)
             openrouter_key = os.getenv("OPENROUTER_API_KEY")
             if not openrouter_key:
-                raise ValueError("OPENROUTER_API_KEY missing.")
+                # If both missing, clean fail
+                Actor.log.error("❌ Both Alibaba and OpenRouter keys missing.")
+                return AnalysisResult(sentiment="Error", category="Error", key_entities=[], summary="Missing API Keys", is_south_africa=False)
                 
             fallback_client = OpenAI(
                 base_url="https://openrouter.ai/api/v1",

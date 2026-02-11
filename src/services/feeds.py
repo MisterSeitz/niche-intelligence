@@ -2,16 +2,40 @@ import feedparser
 from apify import Actor
 from typing import List
 from ..models import ArticleCandidate, InputConfig
+import concurrent.futures
+import random
+from dateutil import parser
+from datetime import datetime, timedelta, timezone
+from collections import defaultdict
 
-# Map of standard feeds (Preserving your list)
-# Multi-Niche Feed Map
+# Multi-Niche Feed Map (Merged from Niche + SA News)
 NICHE_FEED_MAP = {
-    # 📰 Major News (Fallback/General)
+    # 🌍 General / All
     "general": {
          "cnn": "http://rss.cnn.com/rss/edition.rss",
          "bbc": "http://feeds.bbci.co.uk/news/rss.xml",
+         "enca": "https://www.enca.com/rss.xml",
+         "citizen": "https://www.citizen.co.za/feed",
+         "dailymaverick": "https://www.dailymaverick.co.za/rss", 
     },
-    
+
+    # 🚨 Crime & Safety
+    "crime": {
+        "iol-crime": "https://iol.co.za/rss/iol/news/crime-and-courts/"
+    },
+
+    # 🇿🇦 South Africa (National News)
+    "south_africa": {
+        "iol-sa": "https://iol.co.za/rss/iol/news/south-africa/",
+        "citizen-sa": "https://www.citizen.co.za/news/south-africa/feed/",
+        "news24-top": "https://feeds.24.com/articles/news24/topstories/rss"
+    },
+
+    # 🧱 BRICS / Geopolitics
+    "brics": {
+        "iol-brics": "https://iol.co.za/rss/iol/news/brics/"
+    },
+
     # 🎮 Gaming & Esports
     "gaming": {
         "esportsinsider": "https://esportsinsider.com/feed",
@@ -52,6 +76,7 @@ NICHE_FEED_MAP = {
         "blockchain-solutions": "https://blockchainsolutions.com.sa/feed/",
         "tekrevol": "https://www.tekrevol.com/blogs/feed/",
         "futuramo": "https://futuramo.com/blog/feed/",
+        "iol-tech": "https://iol.co.za/rss/iol/technology/"
     },
 
     # ⚡ Energy (General: Solar, Grid, Renewables)
@@ -64,6 +89,7 @@ NICHE_FEED_MAP = {
         "gov-news": "https://www.gov.za/news-feed",
         "engineering-news": "https://www.engineeringnews.co.za/page/energy/feed",
         "esi-africa": "https://www.esi-africa.com/news/feed/",
+        "iol-energy": "https://iol.co.za/rss/iol/news/energy/"
     },
 
     # ⚛️ Nuclear Energy (Strictly Nuclear)
@@ -148,7 +174,6 @@ NICHE_FEED_MAP = {
         "luxebible": "https://luxebible.com/category/lifestyle/feed/",
         "luxurialifestyle": "https://www.luxurialifestyle.com/feed/",
         "tempusmagazine": "https://tempusmagazine.co.uk/feed",
-        # Adding a few key Luxury Daily categories (concatenated in map, but explicit here)
         "luxurydaily-news": "https://www.luxurydaily.com/category/resources/news-briefs/feed/",
     },
 
@@ -220,6 +245,40 @@ NICHE_FEED_MAP = {
         "businesstech-motoring": "https://businesstech.co.za/news/motoring/feed/",
         "iol-motoring": "https://iol.co.za/rss/iol/motoring/",
         "carsite": "https://carsite.co.za/feed/",
+    },
+
+    # 🏉 Sport
+    "sport": {
+        "iol-sport": "https://iol.co.za/rss/iol/sport/",
+        "news24-sport": "https://feeds.24.com/articles/sport/topstories/rss"
+    },
+
+    # 🎬 Entertainment
+    "entertainment": {
+        "iol-entertainment": "https://iol.co.za/rss/iol/entertainment/"
+    },
+
+    # 🏖️ Lifestyle
+    "lifestyle": {
+        "news24-life": "https://feeds.24.com/articles/life/topstories/rss"
+    },
+
+    # 💼 Business
+    "business": {
+        "iol-business": "https://iol.co.za/business/",
+        "citizen-business": "https://www.citizen.co.za/business/feed/",
+        "news24-business": "https://feeds.24.com/articles/business/topstories/rss" 
+    },
+
+    # 🗣️ Opinion
+    "opinion": {
+        "iol-opinion": "https://iol.co.za/opinion/"
+    },
+
+    # 🗳️ Politics
+    "politics": {
+        "iol-politics": "https://iol.co.za/news/politics/",
+        "news24-politics": "https://feeds.24.com/articles/news24/topstories/rss" 
     }
 }
 
@@ -340,8 +399,6 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
             Actor.log.error(f"Failed to fetch {url}: {e}")
         return local_results
 
-    # Parallel Execution
-    import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         futures = [executor.submit(process_feed_url, u) for u in urls]
         for future in concurrent.futures.as_completed(futures):
@@ -354,13 +411,37 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
         if art.url not in seen:
             unique_articles.append(art)
             seen.add(art.url)
+            
+    # BALANCED SELECTION for 'all' mode
+    if config.niche == "all":
+        by_niche = defaultdict(list)
+        for art in unique_articles:
+            by_niche[art.niche].append(art)
+        
+        # Shuffle within niches to avoid feed bias
+        for n in by_niche:
+            random.shuffle(by_niche[n])
+            
+        balanced = []
+        # Round Robin Interleave
+        # We process until we hit maxArticles or run out of content
+        max_possible_depth = max((len(l) for l in by_niche.values()), default=0)
+        
+        for i in range(max_possible_depth):
+            for niche_key in by_niche:
+                if len(balanced) >= config.maxArticles:
+                    break
+                if n in by_niche and i < len(by_niche[niche_key]):  # Fixed syntax: 'n' was meant to be 'niche_key'
+                    balanced.append(by_niche[niche_key][i])
+            if len(balanced) >= config.maxArticles:
+                break
+                
+        Actor.log.info(f"✅ Selected {len(balanced)} balanced articles across {len(by_niche)} niches.")
+        return balanced
     
+    random.shuffle(unique_articles)
     Actor.log.info(f"✅ Fetched {len(unique_articles)} recent unique articles (after time filter).")
     return unique_articles[:config.maxArticles]
-
-# --- Helper ---
-from dateutil import parser
-from datetime import datetime, timedelta, timezone
 
 def is_recent(date_str: str, time_limit: str) -> bool:
     """
@@ -396,4 +477,4 @@ def normalize_date(date_str: str) -> str:
             dt = dt.replace(tzinfo=timezone.utc)
         return dt.isoformat()
     except Exception:
-        return date_str # Return original if parse fails
+        return date_str

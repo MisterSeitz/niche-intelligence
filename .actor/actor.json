@@ -1,9 +1,9 @@
 {
   "actorSpecification": 1,
-  "name": "ai-gaming-esports-summarizer",
-  "title": "🎮 Gaming & Esports News Intelligence Pipeline",
-  "description": "This Apify Actor processes Gaming and Esports news from major RSS feeds and transforms headlines into structured, actionable intelligence using free web search and combined Language Model (LLM) analysis.",
-  "version": "0.3", 
+  "name": "unified-intelligence-pipeline",
+  "title": "🧠 Unified Intelligence Pipeline",
+  "description": "Consolidated intelligence actor for Global Niches (Gaming, Tech, Crypto) and South African News (Politics, Crime, Lifestyle). Transforms RSS feeds into structured intelligence using LLM analysis and Supabase ingestion.",
+  "version": "1.0",
   "dockerfile": "./Dockerfile",
   "entrypoint": "python -m src.main",
   "input": "./input_schema.json",
@@ -12,11 +12,10 @@
     "dataset": "./dataset_schema.json"
   },
   "buildTag": "latest",
-  "actorRunInputExample": { 
+  "actorRunInputExample": {
+    "niche": "all",
     "source": "all",
     "maxArticles": 10,
-    "region": "wt-wt",
-    "timeLimit": "w",
     "runTestMode": false
   },
   "authors": [
@@ -25,6 +24,16 @@
       "url": "https://www.visita.co.za"
     }
   ],
-  "categories": ["News", "Gaming", "Esports", "Technology", "AI", "Analytics"],
+  "categories": [
+    "News",
+    "Gaming",
+    "Esports",
+    "Technology",
+    "AI",
+    "Analytics",
+    "Politics",
+    "Crime",
+    "South Africa"
+  ],
   "isPublic": true
 }
