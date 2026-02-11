@@ -41,15 +41,15 @@ class Organization(BaseModel):
     details: Optional[str] = None
 
 class AnalysisResult(BaseModel):
-    sentiment: str = Field(description="Hype/Interest level")
-    category: str = Field(description="Thematic category")
-    key_entities: List[str] = Field(description="Games, Studios, or People")
-    summary: str = Field(description="AI synthesized summary")
-    location: Optional[str] = Field(description="General location context")
-    city: Optional[str] = Field(description="Specific city if mentioned")
-    country: Optional[str] = Field(description="Country context")
-    is_south_africa: bool = Field(description="True if content is relevant to South Africa")
-    detected_niche: Optional[str] = Field(description="If the content clearly belongs to another niche (gaming, crypto, etc.), specify it here.")
+    sentiment: str = Field(default="Unknown", description="Hype/Interest level")
+    category: str = Field(default="General", description="Thematic category")
+    key_entities: List[str] = Field(default_factory=list, description="Games, Studios, or People")
+    summary: str = Field(default="No summary available.", description="AI synthesized summary")
+    location: Optional[str] = Field(default=None, description="General location context")
+    city: Optional[str] = Field(default=None, description="Specific city if mentioned")
+    country: Optional[str] = Field(default=None, description="Country context")
+    is_south_africa: bool = Field(default=False, description="True if content is relevant to South Africa")
+    detected_niche: Optional[str] = Field(default=None, description="If the content clearly belongs to another niche (gaming, crypto, etc.), specify it here.")
     
     # Rich Intelligence (New)
     incidents: Optional[List[Incident]] = Field(default_factory=list)

@@ -4,6 +4,7 @@ from typing import List
 from ..models import ArticleCandidate, InputConfig
 import concurrent.futures
 import random
+import socket
 from dateutil import parser
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
@@ -285,6 +286,9 @@ NICHE_FEED_MAP = {
 def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
     """Fetches articles from RSS feeds based on niche."""
     
+    # Set global default timeout for socket operations (underlying feedparser usage)
+    socket.setdefaulttimeout(15)
+
     # 1. TEST MODE
     if config.runTestMode:
         Actor.log.info(f"🧪 TEST MODE: Generating dummy feed data for niche '{config.niche}'.")
@@ -333,7 +337,11 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
         elif config.source in feed_map:
             urls.append({"url": feed_map[config.source], "niche": niche})
 
-    Actor.log.info(f"Found {len(urls)} feeds to process. Starting parallel fetch...")
+    total_feeds = len(urls)
+    Actor.log.info(f"So, we found {total_feeds} feeds to process. Starting parallel fetch with 20 workers...")
+
+    # Shuffle initially to prevent hitting one slow domain concurrently
+    random.shuffle(urls)
 
     feed_data = []
     
@@ -343,9 +351,17 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
         niche_context = entry["niche"]
         local_results = []
         try:
-            # Actor.log.info(f"Fetching RSS: {url} [{niche_context}]") # Reduced noise
+            # Verbose logging to debug stalling
+            # Actor.log.info(f"⏳ processing: {url} [{niche_context}]")
+            
+            # feedparser can timeout if socket timeout is set globally (above)
             feed = feedparser.parse(url)
             
+            # Check for bozo (malformed XML) or errors
+            if feed.bozo and hasattr(feed, 'bozo_exception'):
+                # Log but try to continue if entries exist
+                 pass 
+
             for entry_data in feed.entries:
                 # Basic validation
                 if not hasattr(entry_data, 'title') or not hasattr(entry_data, 'link'):
@@ -397,12 +413,26 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                 )
         except Exception as e:
             Actor.log.error(f"Failed to fetch {url}: {e}")
+            
         return local_results
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = [executor.submit(process_feed_url, u) for u in urls]
+    # Increased workers to 20 to prevent bottlenecks
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        futures = {executor.submit(process_feed_url, u): u for u in urls}
+        
+        completed_count = 0
         for future in concurrent.futures.as_completed(futures):
-            feed_data.extend(future.result())
+            completed_count += 1
+            if completed_count % 20 == 0:
+                Actor.log.info(f"📊 Progress: {completed_count}/{total_feeds} feeds processed...")
+            
+            try:
+                res = future.result(timeout=20) # Enforce a timeout on getting valid result
+                feed_data.extend(res)
+            except concurrent.futures.TimeoutError:
+                Actor.log.warning(f"⚠️ A feed task timed out.")
+            except Exception as e:
+                Actor.log.error(f"⚠️ Worker exception: {e}")
 
     # Deduplicate by URL
     seen = set()
@@ -431,7 +461,7 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
             for niche_key in by_niche:
                 if len(balanced) >= config.maxArticles:
                     break
-                if n in by_niche and i < len(by_niche[niche_key]):  # Fixed syntax: 'n' was meant to be 'niche_key'
+                if niche_key in by_niche and i < len(by_niche[niche_key]):  # Corrected logic
                     balanced.append(by_niche[niche_key][i])
             if len(balanced) >= config.maxArticles:
                 break
