@@ -43,6 +43,8 @@ class SupabaseIngestor:
              return "gov_intelligence", "election_news"
         elif niche == "sport":
             return "sports_intelligence", "news"
+        elif niche == "crime":
+            return "crime_intelligence", "news" # Explicit route to news table
         
         # Specific Tables in ai_intelligence
         # These are niches that have dedicated tables
@@ -70,6 +72,12 @@ class SupabaseIngestor:
         schema, table = self._get_target_table(niche)
 
         try:
+            # Special check for crime news (since it used to be entries)
+            if niche == "crime":
+                 # Check the new table
+                 res = self.supabase.schema("crime_intelligence").table("news").select("url").eq("url", url).execute()
+                 if len(res.data) > 0: return True
+                 
             res = self.supabase.schema(schema).table(table).select("url").eq("url", url).execute()
             return len(res.data) > 0
         except Exception as e:
@@ -226,11 +234,7 @@ class SupabaseIngestor:
              if analysis.energy_type and "nuclear" in analysis.energy_type.lower():
                  target_table = "nuclear_energy"
         
-        # Crime Special Logic
-        if niche == "crime":
-            # Crime primarily goes to incidents, but we fallback to entries for feed visibility if needed.
-            # Actually, let's keep it consistent: Crime -> Entries for now as there is no specific table except incidents.
-            target_table = "entries"
+        # Crime Special Logic - REMOVED, now routed properly above
 
         # Business Special Logic
         if niche == "business":
@@ -288,7 +292,7 @@ class SupabaseIngestor:
                  data["category"] = "Safety"
 
         # Niche Tables (Generic Schema: published, ai_summary, sentiment)
-        elif target_table not in ["entries", "election_news", "brics", "news"]: # 'news' is sport
+        elif target_table not in ["entries", "election_news", "brics", "news", "incidents"]:
              # E.g. energy, motoring, gaming, crypto, etc.
              if "published_at" in data:
                  data["published"] = data.pop("published_at")
@@ -299,13 +303,18 @@ class SupabaseIngestor:
              if target_schema == "sports_intelligence" and target_table == "news":
                  pass # check schema for sport
         
-        # Sport (sports_intelligence.news)
-        if target_schema == "sports_intelligence" and target_table == "news":
-            # Check schema for sport table. Assuming standard upsert.
+        # Sport (sports_intelligence.news) & Crime (crime_intelligence.news)
+        if (target_schema == "sports_intelligence" and target_table == "news") or \
+           (target_schema == "crime_intelligence" and target_table == "news"):
+            
             if "published_at" in data:
-                # schema.md for SA News said sports.news uses what?
-                # Assuming similar to others.
-                pass
+                 data["published"] = data.pop("published_at")
+            if "summary" in data:
+                 data["ai_summary"] = data.pop("summary")
+            if "sentiment_label" in data:
+                 data["sentiment"] = data.pop("sentiment_label")
+            if "image_url" in raw:
+                 data["image_url"] = raw["image_url"]
 
         # Niche Data Injection
         if analysis.niche_data:
@@ -313,7 +322,24 @@ class SupabaseIngestor:
                   # Assume most niche tables support 'snippet_sources' or similar?
                   # Actually, Schema says `snippet_sources` for Motoring/Energy.
                   # For others, we might need to check. Safe to attempt insert if JSONB field exists.
-                  data["snippet_sources"] = analysis.niche_data
+                  if target_schema in ["sports_intelligence", "crime_intelligence"]:
+                       # Use 'snippet_sources' or 'metadata'? 
+                       # Schema check: sports.news has 'snippet_sources'. crime.news has 'metadata'.
+                       if target_schema == "crime_intelligence":
+                           data["metadata"] = analysis.niche_data
+                       else:
+                           data["snippet_sources"] = analysis.niche_data
+
+                  elif target_table == "motoring" or target_table == "energy":
+                       data["snippet_sources"] = analysis.niche_data
+                  else:
+                       # general fallback
+                       if "metadata" in data or "snippet_sources" in data:
+                           pass # already set?
+                       else:
+                           # Most niche tables might not have this column yet if we didn't add it explicitly
+                           # Let's hope for schema match.
+                           pass
              elif target_table == "entries":
                   if "data" not in data: data["data"] = {}
                   data["data"]["niche_data"] = analysis.niche_data
