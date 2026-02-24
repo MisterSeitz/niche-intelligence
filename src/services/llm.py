@@ -1,6 +1,6 @@
 import os
 import json
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 from apify import Actor
 from ..models import AnalysisResult
 from langchain_core.output_parsers import PydanticOutputParser
@@ -134,51 +134,39 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     {parser.get_format_instructions()}
     """
 
-    api_key = os.getenv("ALIBABA_CLOUD_API_KEY")
-    # if not api_key:
-    #     raise ValueError("ALIBABA_CLOUD_API_KEY missing in Secrets.")
+    api_token = os.getenv("GITHUB_ACCESS_TOKEN")
 
-    # We use standard OpenAI client for Alibaba Qwen compatibility
-    # If unavailable, we handle via exception below
     client = None
-    if api_key:
+    if api_token:
         client = OpenAI(
-            base_url="https://coding-intl.dashscope.aliyuncs.com/v1",
-            api_key=api_key,
+            base_url="https://models.inference.ai.azure.com",
+            api_key=api_token,
         )
 
     llm_content = None
     
-    # Primary Provider: Alibaba Cloud Qwen
-    try:
-        if not client: raise ValueError("Skipping Alibaba (No Key)")
-        
-        completion = client.chat.completions.create(
-            model="qwen3-coder-plus",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
-            ],
-            response_format={"type": "json_object"}
-        )
-        llm_content = completion.choices[0].message.content
+    # Models to try in sequence
+    # Note: user requested "gpt 5 mini", "gpt 4 mini", "o3 mini"
+    # Mapping to available endpoints on GitHub Models
+    models_sequence = [
+        "gpt-4o",         # Primary (assuming substitute for standard primary model until gpt-5 is out, or gpt-4o as best match)
+        "gpt-4o-mini",    # Fallback 1
+        "o3-mini"         # Fallback 2
+    ]
 
-    except Exception as e:
-        Actor.log.warning(f"⚠️ Alibaba Cloud failed/skipped: {e}. Falling back to OpenRouter...")
+    if not client:
+        Actor.log.warning("⚠️ GITHUB_ACCESS_TOKEN missing. Attempting legacy OpenRouter fallback...")
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        if not openrouter_key:
+            Actor.log.error("❌ Both GITHUB_ACCESS_TOKEN and OPENROUTER_API_KEY missing.")
+            return AnalysisResult(sentiment="Error", category="Error", key_entities=[], summary="Missing API Keys", is_south_africa=False)
+            
+        fallback_client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=openrouter_key,
+        )
         
         try:
-            # Fallback Provider: OpenRouter (Free)
-            openrouter_key = os.getenv("OPENROUTER_API_KEY")
-            if not openrouter_key:
-                # If both missing, clean fail
-                Actor.log.error("❌ Both Alibaba and OpenRouter keys missing.")
-                return AnalysisResult(sentiment="Error", category="Error", key_entities=[], summary="Missing API Keys", is_south_africa=False)
-                
-            fallback_client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=openrouter_key,
-            )
-            
             completion = fallback_client.chat.completions.create(
                 model="google/gemini-2.0-flash-exp:free",
                 messages=[
@@ -192,14 +180,48 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
                 response_format={"type": "json_object"}
             )
             llm_content = completion.choices[0].message.content
-            
         except Exception as e2:
             Actor.log.error(f"❌ OpenRouter Fallback failed: {e2}")
             return AnalysisResult(
                 sentiment="Error",
                 category="Error",
                 key_entities=[],
-                summary=f"Analysis failed. Primary: {e}, Fallback: {e2}",
+                summary=f"Analysis failed. Fallback: {e2}",
+                location=None, city=None, country=None, is_south_africa=False
+            )
+    else:
+        # Primary provider: GitHub Models with rate-limit fallback
+        last_exception = None
+        for attempt_idx, model_name in enumerate(models_sequence):
+            try:
+                Actor.log.info(f"🤖 Attempting analysis with GitHub Model: {model_name}")
+                completion = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
+                    ],
+                    response_format={"type": "json_object"}
+                )
+                llm_content = completion.choices[0].message.content
+                Actor.log.info(f"✅ Successfully used model: {model_name}")
+                break # Success!
+            except RateLimitError as e:
+                last_exception = e
+                Actor.log.warning(f"⏳ RateLimitError with {model_name}: {e}. Trying next model...")
+                continue # Try the next model
+            except Exception as e:
+                last_exception = e
+                Actor.log.error(f"❌ Error with {model_name}: {e}. Trying next model...")
+                continue # Try the next model
+                
+        if llm_content is None:
+            Actor.log.error(f"❌ All GitHub Models failed. Last error: {last_exception}")
+            return AnalysisResult(
+                sentiment="Error",
+                category="Error",
+                key_entities=[],
+                summary=f"All models failed. Last error: {last_exception}",
                 location=None, city=None, country=None, is_south_africa=False
             )
 
