@@ -302,74 +302,55 @@ class SupabaseIngestor:
             "published_at": self._parse_date(raw.get("published")) or "now()",
             "category": analysis.category,
             "summary": analysis.summary,
-            "sentiment_label": analysis.sentiment,
+            "sentiment": analysis.sentiment,
             "source": raw.get("source", "SA News Scraper"),
             "created_at": "now()"
         }
 
         # Adapt payload for specific tables
         
-        # BRICS
-        if target_table == "brics":
-            data["ai_summary"] = data.pop("summary") # Rename summary to ai_summary
-            data["sentiment"] = data.pop("sentiment_label") # Rename sentiment_label to sentiment
-            data["entities"] = analysis.key_entities
-            data["location_text"] = analysis.location
-            if "published_at" in data:
-                data["published"] = data.pop("published_at")
-            if analysis.niche_data:
-                data["metadata"] = analysis.niche_data
-            if analysis.niche_data and "topic" in analysis.niche_data:
+        # BRICS & Web3
+        if target_table in ["brics", "web3"]:
+            data["ai_summary"] = data.pop("summary")
+            data["published"] = data.pop("published_at")
+            data["source_feed"] = data.pop("source")
+            data["key_entities"] = analysis.key_entities
+            if target_table == "brics" and analysis.niche_data and "topic" in analysis.niche_data:
                 data["topic"] = analysis.niche_data["topic"]
-            valid_categories = ['diplomacy','summit','economy','trade','energy','defense','sanctions','technology','health','education','infrastructure','governance','other']
-            if data["category"] and data["category"].lower() not in valid_categories:
-                 if data["category"].lower() in valid_categories:
-                      data["category"] = data["category"].lower()
-                 else:
-                      data["category"] = "other"
-            elif not data["category"]:
-                 data["category"] = "other"
-        
+
         # Election News
         elif target_table == "election_news":
-            if "category" in data:
-                del data["category"]
-            if "url" in data: 
-                data["source_url"] = data.pop("url")
-            if "sentiment_label" in data:
-                data["sentiment"] = data.pop("sentiment_label")
+            data["source_url"] = data.pop("url")
+            data["source_name"] = data.pop("source")
+            data["ai_summary"] = data.get("summary") # Schema has both summary and ai_summary
 
         # Entries (Generic)
         elif target_table == "entries":
-             if "published_at" in data:
-                 data["published_date"] = data.pop("published_at")
-             if data.get("category") and data["category"].lower() == "crime":
-                 data["category"] = "Safety"
+            data["published_date"] = data.pop("published_at")
+            data["ai_summary"] = data.pop("summary")
+            if data.get("category") and data["category"].lower() == "crime":
+                data["category"] = "Safety"
 
-        # Niche Tables (Generic Schema: published, ai_summary, sentiment)
-        elif target_table not in ["entries", "election_news", "brics", "news", "incidents"]:
-             # E.g. energy, motoring, gaming, crypto, etc.
+        # Sports (sports_intelligence.news)
+        elif target_schema == "sports_intelligence" and target_table == "news":
+            # Verified columns: summary, published_at, source_domain. No sentiment (text).
+            data["source_domain"] = data.pop("source")
+            if "sentiment" in data:
+                del data["sentiment"] # Table has sentiment_score (numeric), not text
+
+        # Crime (crime_intelligence.news)
+        elif target_schema == "crime_intelligence" and target_table == "news":
+            # Verified columns: ai_summary, published, sentiment
+            data["published"] = data.pop("published_at")
+            data["ai_summary"] = data.pop("summary")
+
+        # Niche Tables (Generic Fallback for energy, motoring, gaming, etc.)
+        else:
+             # Most standard niche tables use: published, ai_summary, sentiment
              if "published_at" in data:
                  data["published"] = data.pop("published_at")
              if "summary" in data:
                  data["ai_summary"] = data.pop("summary")
-             if "sentiment_label" in data:
-                 data["sentiment"] = data.pop("sentiment_label")
-             if target_schema == "sports_intelligence" and target_table == "news":
-                 pass # check schema for sport
-        
-        # Sport (sports_intelligence.news) & Crime (crime_intelligence.news)
-        if (target_schema == "sports_intelligence" and target_table == "news") or \
-           (target_schema == "crime_intelligence" and target_table == "news"):
-            
-            if "published_at" in data:
-                 data["published"] = data.pop("published_at")
-            if "summary" in data:
-                 data["ai_summary"] = data.pop("summary")
-            if "sentiment_label" in data:
-                 data["sentiment"] = data.pop("sentiment_label")
-            if "image_url" in raw:
-                 data["image_url"] = raw["image_url"]
 
         # Niche Data Injection
         if analysis.niche_data:
