@@ -8,8 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 from src.services.llm import analyze_content
 
 def main():
-    if not os.getenv("GITHUB_ACCESS_TOKEN"):
-        print("Error: GITHUB_ACCESS_TOKEN not set!")
+    if not os.getenv("PERPLEXITY_API_KEY"):
+        print("Error: PERPLEXITY_API_KEY not set!")
         return
 
     test_content = """

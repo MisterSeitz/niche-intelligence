@@ -21,10 +21,15 @@ class WorkflowState(TypedDict):
 # --- Nodes ---
 
 async def fetch_feeds_node(state: WorkflowState):
-    """Initializes and fetches RSS data."""
+    """Initializes, fetches RSS data, and buffers to Supabase."""
     config = state['config']
     articles = fetch_feed_data(config)
-    Actor.log.info(f"📚 Queued {len(articles)} articles for analysis.")
+    
+    # Pre-processing: Buffer raw articles to traceability table
+    ingestor = SupabaseIngestor()
+    await ingestor.ingest_raw_feed_items(articles)
+    
+    Actor.log.info(f"📚 Queued and Buffered {len(articles)} articles.")
     return {"articles": articles, "current_index": 0}
 
 async def process_article_node(state: WorkflowState):
@@ -93,7 +98,8 @@ async def process_article_node(state: WorkflowState):
             if not config.runTestMode:
                 await Actor.charge(event_name="summarize_snippets_with_llm") 
 
-            # 5. DATASET & SUPABASE INGESTION
+            # 5. INGESTION (to Feed Items & Specific Tables)
+            await ingestor.ingest(analysis, article)
             
             # Create Dataset Record (Standardized)
             record = DatasetRecord(
@@ -154,17 +160,28 @@ async def process_article_node(state: WorkflowState):
             # Push to Apify Dataset
             await Actor.push_data(record.model_dump())
             
-            # Ingest to Supabase (Intelligent Routing)
-            await ingestor.ingest(analysis, article)
-            
             # 6. 📢 NOTIFICATIONS
             if config.discordWebhookUrl and "High Hype" in record.sentiment:
                 await send_discord_alert(config.discordWebhookUrl, record.model_dump())
             
         except Exception as e:
             Actor.log.error(f"Analysis loop failed for {article.title}: {e}")
+            # Track failure in feed_items
+            error_analysis = AnalysisResult(
+                sentiment="Error",
+                summary=f"Processing failed: {str(e)}",
+                category="Error"
+            )
+            await ingestor._update_feed_item_status(error_analysis, article)
     else:
-        Actor.log.error("❌ Failed to gather ANY context. Skipping.")
+        # Scraping/Search failed case
+        Actor.log.warning(f"❌ Content extraction failed for: {article.title}")
+        error_analysis = AnalysisResult(
+            sentiment="Error",
+            summary="Failed to extract content (Scraping/Search blocked)",
+            category="Error"
+        )
+        await ingestor._update_feed_item_status(error_analysis, article)
 
     return {"current_index": idx + 1}
 

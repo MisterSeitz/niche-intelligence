@@ -1,5 +1,6 @@
 import os
 import logging
+import hashlib
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from supabase import create_client, Client
@@ -28,6 +29,10 @@ class SupabaseIngestor:
             except Exception as e:
                 Actor.log.error(f"Failed to connect to Supabase: {e}")
                 self.supabase = None
+
+    def _generate_dedup_hash(self, title: str, url: str) -> str:
+        """Generates a consistent MD5 hash for deduplication."""
+        return hashlib.md5(f"{title}{url}".encode()).hexdigest()
 
     def _get_target_table(self, niche: str) -> tuple[str, str]:
         """
@@ -101,6 +106,34 @@ class SupabaseIngestor:
         except:
              return None
 
+    async def ingest_raw_feed_items(self, articles: List[ArticleCandidate]):
+        """
+        Saves raw RSS articles to feed_items table before analysis.
+        Ensures traceability even if processing fails later.
+        """
+        if not self.supabase or not articles:
+            return
+
+        payloads = []
+        for art in articles:
+            payloads.append({
+                "title": art.title,
+                "url": art.url,
+                "origin_feed": art.source,
+                "published_at": self._parse_date(art.published) or "now()",
+                "image_url": art.image_url,
+                "dedup_hash": self._generate_dedup_hash(art.title, art.url),
+                "sentiment_label": None, # Unprocessed
+                "created_at": "now()"
+            })
+
+        try:
+            # Batch upsert by dedup_hash
+            self.supabase.schema("ai_intelligence").table("feed_items").upsert(payloads, on_conflict="dedup_hash").execute()
+            Actor.log.info(f"📥 Buffered {len(payloads)} raw articles to feed_items.")
+        except Exception as e:
+            Actor.log.warning(f"Failed to buffer raw articles: {e}")
+
     async def ingest(self, analysis: AnalysisResult, article: ArticleCandidate):
         """
         Orchestrates the ingestion of a single article's intelligence.
@@ -118,8 +151,30 @@ class SupabaseIngestor:
             for inc in analysis.incidents:
                 await self._ingest_incident(inc, analysis, raw_data)
 
-        # 3. Route Article Content based on Niche
+        # 3. Update the existing Feed Item record with analysis results
+        await self._update_feed_item_status(analysis, article)
+
+        # 4. Route Article Content based on Niche
         await self._route_content(analysis, raw_data)
+
+    async def _update_feed_item_status(self, analysis: AnalysisResult, article: ArticleCandidate):
+        """Updates the feed_items record with analysis results."""
+        try:
+            dedup_hash = self._generate_dedup_hash(article.title, article.url)
+            update_data = {
+                "sentiment_label": analysis.sentiment,
+                "summary": analysis.summary,
+                "entities_mentioned": analysis.key_entities,
+                "country": analysis.country,
+                "region": analysis.location,
+                "metadata": {
+                    "detected_niche": analysis.detected_niche,
+                    "processed_at": datetime.now().isoformat()
+                }
+            }
+            self.supabase.schema("ai_intelligence").table("feed_items").update(update_data).eq("dedup_hash", dedup_hash).execute()
+        except Exception as e:
+            Actor.log.warning(f"Failed to update feed_item status: {e}")
 
     async def _ingest_rich_entities(self, analysis: AnalysisResult):
         # People
@@ -361,6 +416,18 @@ class SupabaseIngestor:
             if target_table == "election_news":
                 conflict_col = "source_url"
 
+            # Handle Type Mismatch for Sentiment (Internal Fix for specific tables)
+            # If sentiment is 'Error' and column is integer, we skip or set to 0
+            if data.get("sentiment") == "Error":
+                 # Check table specific type (we know web3 and brics are integers)
+                 if target_table in ["web3", "brics"]:
+                      data["sentiment"] = 0 # Map Error to 0 for integer columns
+            elif isinstance(data.get("sentiment"), str) and target_table in ["web3", "brics"]:
+                 # Try to cast if it's a numeric string, otherwise default
+                 try:
+                      data["sentiment"] = int(data["sentiment"])
+                 except:
+                      data["sentiment"] = 0
 
             # Standard Upsert
             self.supabase.schema(target_schema).table(target_table).upsert(data, on_conflict=conflict_col).execute()

@@ -134,28 +134,26 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     {parser.get_format_instructions()}
     """
 
-    api_token = os.getenv("GITHUB_ACCESS_TOKEN")
+    api_token = os.getenv("PERPLEXITY_API_KEY")
 
     client = None
     if api_token:
         client = OpenAI(
-            base_url="https://models.inference.ai.azure.com",
+            base_url="https://api.perplexity.ai",
             api_key=api_token,
         )
 
     llm_content = None
     
-    # Models to try in sequence
-    # Note: user requested "gpt 5 mini", "gpt 4 mini", "o3 mini"
-    # Mapping to available endpoints on GitHub Models
+    # Models to try in sequence (Perplexity Sonar models)
     models_sequence = [
-        "gpt-4o",         # Primary (assuming substitute for standard primary model until gpt-5 is out, or gpt-4o as best match)
-        "gpt-4o-mini",    # Fallback 1
-        "o3-mini"         # Fallback 2
+        "sonar",             # Primary (Cheap/Fast)
+        "sonar-pro",         # Fallback 1
+        "sonar-reasoning-pro" # Fallback 2
     ]
 
     if not client:
-        Actor.log.warning("⚠️ GITHUB_ACCESS_TOKEN missing. Attempting legacy OpenRouter fallback...")
+        Actor.log.warning("⚠️ PERPLEXITY_API_KEY missing. Attempting legacy OpenRouter fallback...")
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
         if not openrouter_key:
             Actor.log.error("❌ Both GITHUB_ACCESS_TOKEN and OPENROUTER_API_KEY missing.")
@@ -190,18 +188,18 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
                 location=None, city=None, country=None, is_south_africa=False
             )
     else:
-        # Primary provider: GitHub Models with rate-limit fallback
+        # Primary provider: Perplexity with rate-limit fallback
         last_exception = None
         for attempt_idx, model_name in enumerate(models_sequence):
             try:
-                Actor.log.info(f"🤖 Attempting analysis with GitHub Model: {model_name}")
+                Actor.log.info(f"🤖 Attempting analysis with Perplexity Model: {model_name}")
                 completion = client.chat.completions.create(
                     model=model_name,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
                     ],
-                    response_format={"type": "json_object"}
+                    # response_format={"type": "json_object"} # Perplexity might have varying support, but generally works with chat models
                 )
                 llm_content = completion.choices[0].message.content
                 Actor.log.info(f"✅ Successfully used model: {model_name}")
@@ -216,7 +214,7 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
                 continue # Try the next model
                 
         if llm_content is None:
-            Actor.log.error(f"❌ All GitHub Models failed. Last error: {last_exception}")
+            Actor.log.error(f"❌ All Perplexity Models failed. Last error: {last_exception}")
             return AnalysisResult(
                 sentiment="Error",
                 category="Error",
