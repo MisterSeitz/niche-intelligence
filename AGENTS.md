@@ -29,8 +29,9 @@ For each fetched article, the actor performs the following steps:
 #### C. AI Analysis (`src/services/llm.py`)
 - The extracted content is passed to an LLM to extract structured intelligence.
 - **Providers**:
-  - **Primary**: OpenRouter Free Models (e.g., Google Gemini 2.0 Flash Lite Preview, Llama 3.3 70B) to maximize the 1000 free daily calls.
+  - **Primary**: OpenRouter Free Models (e.g., Google Gemma 3 27B, Llama 3.3 70B, OpenAI GPT-OSS 120B, Nvidia Nemotron) to maximize the free tier usage.
   - **Fallback**: OpenRouter Cheap Capable Models (e.g., Gemini 2.0 Flash, Llama 3.3 70B) if rate limits are hit on the free tier.
+- **Circuit Breaker**: Models that return Rate Limit (429) or Invalid (400/404) errors are automatically marked as failed for the duration of the run to prevent wasted retries.
 - **Extraction Goals**:
   - **General**: Sentiment (Hype level), Category, Key Entities, Geolocation (City, Country, `is_south_africa` flag), and an AI Summary.
   - **Rich Data**: Specific incidents (e.g., crime severity), people (e.g., suspects, officials), and organizations.

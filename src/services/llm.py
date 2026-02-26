@@ -6,6 +6,9 @@ from ..models import AnalysisResult
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
+# Global set to track models that have failed (404, 400) or been rate-limited (429)
+FAILED_MODELS = set()
+
 # --- HELPER: Niche Prompts ---
 def get_niche_instructions(niche: str) -> str:
     niche = niche.lower()
@@ -148,17 +151,23 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     llm_content = None
     
     # Models to try in sequence (OpenRouter Free -> Cheap Capable)
+    # Updated based on availability and reliability
     models_sequence = [
-        "google/gemini-2.0-flash-lite-preview-02-05:free", # Free
-        "google/gemini-2.0-flash-exp:free",                # Free
-        "meta-llama/llama-3.3-70b-instruct:free",          # Free
-        "google/gemini-2.0-flash-lite-preview-02-05",      # Cheap Fallback
-        "google/gemini-2.0-flash-001",                     # Cheap Fallback
-        "meta-llama/llama-3.3-70b-instruct"                # Cheap Fallback
+        "google/gemma-3-27b-it:free",              # Free - New Google model
+        "meta-llama/llama-3.3-70b-instruct:free",  # Free - Llama 3.3
+        "openai/gpt-oss-120b:free",               # Free - OpenAI OSS
+        "nvidia/nemotron-3-nano-30b-a3b:free",     # Free - Nvidia
+        "google/gemini-2.0-flash-001",             # Cheap Fallback - Reliable
+        "meta-llama/llama-3.3-70b-instruct"        # Cheap Fallback
     ]
 
     last_exception = None
     for attempt_idx, model_name in enumerate(models_sequence):
+        # Skip if model is already marked as failed/rate-limited
+        if model_name in FAILED_MODELS:
+            Actor.log.info(f"⏭️ Skipping failed/rate-limited model: {model_name}")
+            continue
+
         try:
             Actor.log.info(f"🤖 Attempting analysis with OpenRouter Model: {model_name}")
             completion = client.chat.completions.create(
@@ -178,11 +187,18 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
             break # Success!
         except RateLimitError as e:
             last_exception = e
-            Actor.log.warning(f"⏳ RateLimitError with {model_name}: {e}. Trying next model...")
+            Actor.log.warning(f"⏳ RateLimitError with {model_name}: {e}. Marking as failed for this run.")
+            FAILED_MODELS.add(model_name)
             continue # Try the next model
         except Exception as e:
             last_exception = e
-            Actor.log.error(f"❌ Error with {model_name}: {e}. Trying next model...")
+            # If 404 (Not Found) or 400 (Bad Request), mark as failed permanently
+            error_str = str(e)
+            if "404" in error_str or "400" in error_str or "not a valid model ID" in error_str:
+                 Actor.log.error(f"❌ Invalid Model {model_name}: {e}. Marking as failed for this run.")
+                 FAILED_MODELS.add(model_name)
+            else:
+                 Actor.log.error(f"❌ Error with {model_name}: {e}. Trying next model...")
             continue # Try the next model
             
     if llm_content is None:
