@@ -233,6 +233,17 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
         if clean_content.endswith('```'):
             clean_content = clean_content[:-3]
         
+        # Only take the FIRST valid JSON block if multiple exist
+        # Sometimes LLMs output explanations after the code block
+        if "```" in clean_content:
+             clean_content = clean_content.split("```")[0]
+
+        # Use regex to extract the JSON object if there's still garbage around it
+        import re
+        json_match = re.search(r'(\{.*\})', clean_content, re.DOTALL)
+        if json_match:
+            clean_content = json_match.group(1)
+
         data = json.loads(clean_content.strip())
         return AnalysisResult(**data)
     except Exception as e:

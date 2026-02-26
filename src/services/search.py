@@ -16,7 +16,8 @@ def perform_brave_request(endpoint: str, params: Dict[str, Any]) -> Optional[req
     keys_to_try = ["BRAVE_API_KEY", "BRAVE_FREE_AI", "BRAVE_BASE_KEY"]
     
     for key_name in keys_to_try:
-        api_key = os.getenv(key_name)
+        # Get key directly from env, stripping whitespace just in case
+        api_key = (os.getenv(key_name) or "").strip()
         if not api_key:
             continue
             
