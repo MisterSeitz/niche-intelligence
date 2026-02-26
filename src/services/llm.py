@@ -224,10 +224,29 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
             )
 
     try:
-        data = json.loads(llm_content)
+        # Check if content is wrapped in markdown code blocks
+        clean_content = llm_content.strip()
+        if clean_content.startswith('```json'):
+            clean_content = clean_content[7:]
+        if clean_content.startswith('```'):
+            clean_content = clean_content[3:]
+        if clean_content.endswith('```'):
+            clean_content = clean_content[:-3]
+        
+        data = json.loads(clean_content.strip())
         return AnalysisResult(**data)
     except Exception as e:
-        Actor.log.error(f"JSON Parse failed: {e} | Content: {llm_content}")
+        # If the LLM refused to answer (e.g. encrypted content), return a specific error result
+        if "I cannot analyze" in llm_content or "encrypted" in llm_content.lower():
+             return AnalysisResult(
+                sentiment="Skipped",
+                category="Encrypted/Obfuscated",
+                key_entities=[],
+                summary="Content was encrypted or obfuscated, analysis skipped.",
+                location=None, city=None, country=None
+            )
+            
+        Actor.log.error(f"JSON Parse failed: {e} | Content: {llm_content[:200]}...")
         return AnalysisResult(
             sentiment="Error",
             category="Error",

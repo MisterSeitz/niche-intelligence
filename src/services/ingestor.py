@@ -351,6 +351,10 @@ class SupabaseIngestor:
                  data["published"] = data.pop("published_at")
              if "summary" in data:
                  data["ai_summary"] = data.pop("summary")
+             
+             # Rename source -> source_feed for niche tables
+             if "source" in data:
+                 data["source_feed"] = data.pop("source")
 
         # Niche Data Injection
         if analysis.niche_data:

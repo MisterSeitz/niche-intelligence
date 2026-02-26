@@ -4,7 +4,7 @@ from apify import Actor
 from langgraph.graph import StateGraph, END
 import os 
 
-from .models import InputConfig, ArticleCandidate, DatasetRecord
+from .models import InputConfig, ArticleCandidate, DatasetRecord, AnalysisResult
 from .services.feeds import fetch_feed_data
 from .services.scraper import scrape_article_content
 from .services.search import brave_search_fallback, find_relevant_image
@@ -158,7 +158,7 @@ async def process_article_node(state: WorkflowState):
             )
             
             # Push to Apify Dataset
-            await Actor.push_data(record.model_dump())
+            await Actor.push_data(record.model_dump(mode='json'))
             
             # 6. 📢 NOTIFICATIONS
             if config.discordWebhookUrl and "High Hype" in record.sentiment:
