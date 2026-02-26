@@ -29,8 +29,8 @@ For each fetched article, the actor performs the following steps:
 #### C. AI Analysis (`src/services/llm.py`)
 - The extracted content is passed to an LLM to extract structured intelligence.
 - **Providers**:
-  - **Primary**: Perplexity API (Sonar models) for fast, high-quality extraction.
-  - **Fallback**: OpenRouter (Google Gemini Free Tier) if Perplexity fails or keys are missing.
+  - **Primary**: OpenRouter Free Models (e.g., Google Gemini 2.0 Flash Lite Preview, Llama 3.3 70B) to maximize the 1000 free daily calls.
+  - **Fallback**: OpenRouter Cheap Capable Models (e.g., Gemini 2.0 Flash, Llama 3.3 70B) if rate limits are hit on the free tier.
 - **Extraction Goals**:
   - **General**: Sentiment (Hype level), Category, Key Entities, Geolocation (City, Country, `is_south_africa` flag), and an AI Summary.
   - **Rich Data**: Specific incidents (e.g., crime severity), people (e.g., suspects, officials), and organizations.
@@ -64,6 +64,5 @@ For each fetched article, the actor performs the following steps:
 ## 🔑 Required Environment Variables
 - `SUPABASE_URL`: URL of the target Supabase instance.
 - `SUPABASE_KEY` / `SUPABASE_SERVICE_ROLE_KEY`: Authentication key for Supabase.
-- `PERPLEXITY_API_KEY`: Primary LLM provider key.
-- `OPENROUTER_API_KEY`: Fallback LLM provider key.
-- `BRAVE_API_KEY`: Required for search fallback and image backfilling.
+- `OPENROUTER_API_KEY`: Primary LLM provider key (used for both free and fallback models).
+- `BRAVE_API_KEY`, `BRAVE_FREE_AI`, `BRAVE_BASE_KEY`: Required for search fallback and image backfilling (rotates automatically on rate limits).

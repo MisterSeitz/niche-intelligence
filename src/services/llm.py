@@ -134,39 +134,35 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
     {parser.get_format_instructions()}
     """
 
-    api_token = os.getenv("PERPLEXITY_API_KEY")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
 
-    client = None
-    if api_token:
-        client = OpenAI(
-            base_url="https://api.perplexity.ai",
-            api_key=api_token,
-        )
+    if not openrouter_key:
+        Actor.log.error("❌ OPENROUTER_API_KEY missing.")
+        return AnalysisResult(sentiment="Error", category="Error", key_entities=[], summary="Missing API Keys", is_south_africa=False)
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=openrouter_key,
+    )
 
     llm_content = None
     
-    # Models to try in sequence (Perplexity Sonar models)
+    # Models to try in sequence (OpenRouter Free -> Cheap Capable)
     models_sequence = [
-        "sonar",             # Primary (Cheap/Fast)
-        "sonar-pro",         # Fallback 1
-        "sonar-reasoning-pro" # Fallback 2
+        "google/gemini-2.0-flash-lite-preview-02-05:free", # Free
+        "google/gemini-2.0-flash-exp:free",                # Free
+        "meta-llama/llama-3.3-70b-instruct:free",          # Free
+        "google/gemini-2.0-flash-lite-preview-02-05",      # Cheap Fallback
+        "google/gemini-2.0-flash-001",                     # Cheap Fallback
+        "meta-llama/llama-3.3-70b-instruct"                # Cheap Fallback
     ]
 
-    if not client:
-        Actor.log.warning("⚠️ PERPLEXITY_API_KEY missing. Attempting legacy OpenRouter fallback...")
-        openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        if not openrouter_key:
-            Actor.log.error("❌ Both GITHUB_ACCESS_TOKEN and OPENROUTER_API_KEY missing.")
-            return AnalysisResult(sentiment="Error", category="Error", key_entities=[], summary="Missing API Keys", is_south_africa=False)
-            
-        fallback_client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=openrouter_key,
-        )
-        
+    last_exception = None
+    for attempt_idx, model_name in enumerate(models_sequence):
         try:
-            completion = fallback_client.chat.completions.create(
-                model="google/gemini-2.0-flash-exp:free",
+            Actor.log.info(f"🤖 Attempting analysis with OpenRouter Model: {model_name}")
+            completion = client.chat.completions.create(
+                model=model_name,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
@@ -178,50 +174,26 @@ def analyze_content(content: str, niche: str = "general", run_test_mode: bool = 
                 response_format={"type": "json_object"}
             )
             llm_content = completion.choices[0].message.content
-        except Exception as e2:
-            Actor.log.error(f"❌ OpenRouter Fallback failed: {e2}")
-            return AnalysisResult(
-                sentiment="Error",
-                category="Error",
-                key_entities=[],
-                summary=f"Analysis failed. Fallback: {e2}",
-                location=None, city=None, country=None, is_south_africa=False
-            )
-    else:
-        # Primary provider: Perplexity with rate-limit fallback
-        last_exception = None
-        for attempt_idx, model_name in enumerate(models_sequence):
-            try:
-                Actor.log.info(f"🤖 Attempting analysis with Perplexity Model: {model_name}")
-                completion = client.chat.completions.create(
-                    model=model_name,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Analyze this content:\n\n{content[:15000]}"}
-                    ],
-                    # response_format={"type": "json_object"} # Perplexity might have varying support, but generally works with chat models
-                )
-                llm_content = completion.choices[0].message.content
-                Actor.log.info(f"✅ Successfully used model: {model_name}")
-                break # Success!
-            except RateLimitError as e:
-                last_exception = e
-                Actor.log.warning(f"⏳ RateLimitError with {model_name}: {e}. Trying next model...")
-                continue # Try the next model
-            except Exception as e:
-                last_exception = e
-                Actor.log.error(f"❌ Error with {model_name}: {e}. Trying next model...")
-                continue # Try the next model
-                
-        if llm_content is None:
-            Actor.log.error(f"❌ All Perplexity Models failed. Last error: {last_exception}")
-            return AnalysisResult(
-                sentiment="Error",
-                category="Error",
-                key_entities=[],
-                summary=f"All models failed. Last error: {last_exception}",
-                location=None, city=None, country=None, is_south_africa=False
-            )
+            Actor.log.info(f"✅ Successfully used model: {model_name}")
+            break # Success!
+        except RateLimitError as e:
+            last_exception = e
+            Actor.log.warning(f"⏳ RateLimitError with {model_name}: {e}. Trying next model...")
+            continue # Try the next model
+        except Exception as e:
+            last_exception = e
+            Actor.log.error(f"❌ Error with {model_name}: {e}. Trying next model...")
+            continue # Try the next model
+            
+    if llm_content is None:
+        Actor.log.error(f"❌ All OpenRouter Models failed. Last error: {last_exception}")
+        return AnalysisResult(
+            sentiment="Error",
+            category="Error",
+            key_entities=[],
+            summary=f"All models failed. Last error: {last_exception}",
+            location=None, city=None, country=None, is_south_africa=False
+        )
 
     try:
         # Check if content is wrapped in markdown code blocks
