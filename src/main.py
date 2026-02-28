@@ -98,8 +98,13 @@ async def process_article_node(state: WorkflowState):
             if not config.runTestMode:
                 await Actor.charge(event_name="summarize_snippets_with_llm") 
 
-            # 5. INGESTION (to Feed Items & Specific Tables)
-            await ingestor.ingest(analysis, article)
+            if analysis.sentiment == "Error" or "Analysis failed: <html>" in str(analysis.summary):
+                Actor.log.warning(f"⚠️ Analysis returned Error, skipping ingestion to DB: {article.title}")
+                # We still update the feed item status to reflect the error
+                await ingestor._update_feed_item_status(analysis, article)
+            else:
+                # 5. INGESTION (to Feed Items & Specific Tables)
+                await ingestor.ingest(analysis, article)
             
             # Create Dataset Record (Standardized)
             record = DatasetRecord(
