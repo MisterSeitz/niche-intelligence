@@ -337,6 +337,10 @@ class SupabaseIngestor:
             data["source_domain"] = data.pop("source")
             if "sentiment" in data:
                 del data["sentiment"] # Table has sentiment_score (numeric), not text
+            if analysis.sport_category:
+                data["sport_category"] = analysis.sport_category
+            if analysis.subcategories:
+                data["subcategories"] = analysis.subcategories
 
         # Crime (crime_intelligence.news)
         elif target_schema == "crime_intelligence" and target_table == "news":

@@ -159,7 +159,11 @@ async def process_article_node(state: WorkflowState):
                 vehicle_make=analysis.vehicle_make,
                 vehicle_model=analysis.vehicle_model,
                 vehicle_type=analysis.vehicle_type,
-                price_range=analysis.price_range
+                price_range=analysis.price_range,
+
+                # Sport
+                sport_category=analysis.sport_category,
+                subcategories=analysis.subcategories
             )
             
             # Push to Apify Dataset

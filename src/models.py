@@ -89,6 +89,10 @@ class AnalysisResult(BaseModel):
     vehicle_type: Optional[str] = None # SUV, Sedan, EV, Truck
     price_range: Optional[str] = None
 
+    # Sport Specific
+    sport_category: Optional[str] = None
+    subcategories: Optional[List[str]] = None
+
 class DatasetRecord(BaseModel):
     niche: str
     source_feed: str
@@ -142,3 +146,7 @@ class DatasetRecord(BaseModel):
     vehicle_model: Optional[str] = None
     vehicle_type: Optional[str] = None
     price_range: Optional[str] = None
+
+    # Sport Specific
+    sport_category: Optional[str] = None
+    subcategories: Optional[List[str]] = None

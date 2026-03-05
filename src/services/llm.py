@@ -79,6 +79,12 @@ def get_niche_instructions(niche: str) -> str:
         - vehicle_type: SUV, Sedan, EV, Truck, Hatchback.
         - price_range: Estimated cost or listed price (e.g. "R500,000", "$30k").
         """
+    elif niche == "sport":
+        return """
+        EXTRACT SPORT INTEL:
+        - sport_category: Classify the major domain (e.g., MMA, Boxing, BJJ, Karate, Football, Rugby).
+        - subcategories: Relevant tags (e.g., "Heavyweight", "Title Fight", "Submission Grappling", "Transfer").
+        """
     
     return "Extract People and Organizations mentioned."
 
