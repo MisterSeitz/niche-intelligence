@@ -17,8 +17,8 @@ class SupabaseIngestor:
 
     def __init__(self):
         self.url = os.getenv("SUPABASE_URL")
-        # Check standard key, then service role key, then anon key
-        self.key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+        # Check service role key, then standard key, then anon key
+        self.key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY")
         
         if not self.url or not self.key:
             Actor.log.warning(f"Supabase credentials missing (URL={bool(self.url)}, Key={bool(self.key)}). Ingestion will fail.")

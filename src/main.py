@@ -7,7 +7,7 @@ import os
 from .models import InputConfig, ArticleCandidate, DatasetRecord, AnalysisResult
 from .services.feeds import fetch_feed_data
 from .services.scraper import scrape_article_content
-from .services.search import brave_search_fallback, find_relevant_image
+from .services.search import rag_browser_fallback, find_relevant_image
 from .services.llm import analyze_content
 from .services.notifications import send_discord_alert
 from .services.ingestor import SupabaseIngestor
@@ -70,14 +70,14 @@ async def process_article_node(state: WorkflowState):
 
     # 2. STRATEGY: Search Fallback
     if not context:
-        Actor.log.info("⚠️ Scraping failed/blocked. Engaging Brave Search Fallback.")
-        context = brave_search_fallback(article.title, config.runTestMode)
+        Actor.log.info("⚠️ Scraping failed/blocked. Engaging RAG Web Browser Fallback.")
+        context = await rag_browser_fallback(article.title, config.runTestMode)
         method = "search_fallback"
         
-    # 3. STRATEGY: Brave Image Backfill (If enabled and still no image)
+    # 3. STRATEGY: Image Backfill (If enabled and still no image)
     if not final_image_url and config.enableBraveImageBackfill:
          Actor.log.info(f"🖼️ Backfilling image for: {article.title}")
-         final_image_url = find_relevant_image(article.title, config.runTestMode)
+         final_image_url = await find_relevant_image(article.title, config.runTestMode)
 
     # 3. STRATEGY: AI Analysis
     if context:
@@ -211,8 +211,6 @@ async def main():
             if not os.getenv("OPENROUTER_API_KEY"):
                 Actor.log.warning("⚠️ OPENROUTER_API_KEY not found. Switching to TEST MODE.")
                 config.runTestMode = True
-            elif not os.getenv("BRAVE_API_KEY"):
-                Actor.log.warning("⚠️ BRAVE_API_KEY missing. Search fallback disabled.")
 
         # Graph Setup
         workflow = StateGraph(WorkflowState)
