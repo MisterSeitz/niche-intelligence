@@ -103,21 +103,30 @@
                 "description": "Truncated source text."
             },
             "incidents": {
-                "type": "array",
+                "type": [
+                    "array",
+                    "null"
+                ],
                 "title": "Incidents",
                 "items": {
                     "type": "object"
                 }
             },
             "people": {
-                "type": "array",
+                "type": [
+                    "array",
+                    "null"
+                ],
                 "title": "People",
                 "items": {
                     "type": "object"
                 }
             },
             "organizations": {
-                "type": "array",
+                "type": [
+                    "array",
+                    "null"
+                ],
                 "title": "Organizations",
                 "items": {
                     "type": "object"
@@ -289,6 +298,23 @@
                     "null"
                 ],
                 "title": "Price Range"
+            },
+            "sport_category": {
+                "type": [
+                    "string",
+                    "null"
+                ],
+                "title": "Sport Category"
+            },
+            "subcategories": {
+                "type": [
+                    "array",
+                    "null"
+                ],
+                "title": "Subcategories",
+                "items": {
+                    "type": "string"
+                }
             }
         },
         "required": [
@@ -301,7 +327,7 @@
     },
     "views": {
         "overview": {
-            "title": "📊 Unified Intelligence Dashboard",
+            "title": "\ud83d\udcca Unified Intelligence Dashboard",
             "description": "Strategic view of intelligence across all niches.",
             "transformation": {
                 "fields": [
@@ -320,11 +346,11 @@
                 "component": "table",
                 "properties": {
                     "niche": {
-                        "label": "🎯 Niche",
+                        "label": "\ud83c\udfaf Niche",
                         "format": "text"
                     },
                     "sentiment": {
-                        "label": "🔥 Hype/Risk",
+                        "label": "\ud83d\udd25 Hype/Risk",
                         "format": "text"
                     },
                     "title": {
@@ -332,30 +358,30 @@
                         "format": "text"
                     },
                     "ai_summary": {
-                        "label": "💡 Insight",
+                        "label": "\ud83d\udca1 Insight",
                         "format": "text"
                     },
                     "key_entities": {
-                        "label": "🏢 Entities",
+                        "label": "\ud83c\udfe2 Entities",
                         "format": "array"
                     },
                     "location": {
-                        "label": "📍 Location",
+                        "label": "\ud83d\udccd Location",
                         "format": "text"
                     },
                     "published": {
-                        "label": "📅 Date",
+                        "label": "\ud83d\udcc5 Date",
                         "format": "date"
                     },
                     "url": {
-                        "label": "🔗 Link",
+                        "label": "\ud83d\udd17 Link",
                         "format": "link"
                     }
                 }
             }
         },
         "incidents": {
-            "title": "🚨 Crime & Safety Feed",
+            "title": "\ud83d\udea8 Crime & Safety Feed",
             "description": "Filtered view for Crime and Politics incidents.",
             "transformation": {
                 "fields": [
