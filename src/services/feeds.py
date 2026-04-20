@@ -412,7 +412,7 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
                     )
                 )
         except Exception as e:
-            Actor.log.error(f"Failed to fetch {url}: {e}")
+            Actor.log.warning(f"⚠️ Failed to fetch {url}: {e}")
             
         return local_results
 
@@ -453,25 +453,22 @@ def fetch_feed_data(config: InputConfig) -> List[ArticleCandidate]:
             random.shuffle(by_niche[n])
             
         balanced = []
-        # Round Robin Interleave
-        # We process until we hit maxArticles or run out of content
+        # Round Robin Interleave - return all but in balanced order
+        # We process until we run out of content
         max_possible_depth = max((len(l) for l in by_niche.values()), default=0)
         
+        balanced = []
         for i in range(max_possible_depth):
             for niche_key in by_niche:
-                if len(balanced) >= config.maxArticles:
-                    break
                 if niche_key in by_niche and i < len(by_niche[niche_key]):  # Corrected logic
                     balanced.append(by_niche[niche_key][i])
-            if len(balanced) >= config.maxArticles:
-                break
                 
-        Actor.log.info(f"✅ Selected {len(balanced)} balanced articles across {len(by_niche)} niches.")
-        return balanced
+        Actor.log.info(f"✅ Selected {len(balanced)} candidate articles across {len(by_niche)} niches.")
+        return balanced # Return all interleaved articles, let main handle slicing after DB filter
     
     random.shuffle(unique_articles)
     Actor.log.info(f"✅ Fetched {len(unique_articles)} recent unique articles (after time filter).")
-    return unique_articles[:config.maxArticles]
+    return unique_articles # Return all unique articles, let main handle slicing after DB filter
 
 def is_recent(date_str: str, time_limit: str) -> bool:
     """

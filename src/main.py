@@ -23,14 +23,28 @@ class WorkflowState(TypedDict):
 async def fetch_feeds_node(state: WorkflowState):
     """Initializes, fetches RSS data, and buffers to Supabase."""
     config = state['config']
-    articles = fetch_feed_data(config)
+    all_articles = fetch_feed_data(config)
     
-    # Pre-processing: Buffer raw articles to traceability table
+    # 0. STRATEGY: Find NEW articles that haven't been processed yet
+    # This ensures that if the user asks for 1 article, they get 1 NEW article to test.
     ingestor = SupabaseIngestor()
-    await ingestor.ingest_raw_feed_items(articles)
     
-    Actor.log.info(f"📚 Queued and Buffered {len(articles)} articles.")
-    return {"articles": articles, "current_index": 0}
+    final_articles = all_articles
+    if not config.runTestMode and not config.forceRefresh:
+        Actor.log.info(f"🔎 Filtering for new content (Limit: {config.maxArticles})...")
+        final_articles = ingestor.filter_new_articles(all_articles, limit=config.maxArticles)
+        skip_count = len(all_articles) - len(final_articles)
+        if skip_count > 0:
+            Actor.log.info(f"♻️ Skipped {skip_count} already-processed articles from the feed candidate pool.")
+    else:
+        # Just slice if forceRefresh or testMode is ON
+        final_articles = all_articles[:config.maxArticles]
+
+    # Pre-processing: Buffer raw articles to traceability table
+    await ingestor.ingest_raw_feed_items(final_articles)
+    
+    Actor.log.info(f"📚 Queued and Buffered {len(final_articles)} articles.")
+    return {"articles": final_articles, "current_index": 0}
 
 async def process_article_node(state: WorkflowState):
     """The Core Logic: Scrape -> Fallback -> AI -> Save"""

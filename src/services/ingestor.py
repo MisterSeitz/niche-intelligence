@@ -66,6 +66,25 @@ class SupabaseIngestor:
         
         return schema, table
 
+    def filter_new_articles(self, articles: List[ArticleCandidate], limit: int) -> List[ArticleCandidate]:
+        """
+        Filters a list of articles and returns only those that don't exist in Supabase,
+        up to the specified limit.
+        """
+        if not self.supabase or not articles:
+            return articles[:limit]
+
+        new_articles = []
+        for art in articles:
+            if len(new_articles) >= limit:
+                break
+            
+            # Use existing check_exists for simplicity
+            if not self.check_exists(art.url, niche=art.niche or "general"):
+                new_articles.append(art)
+        
+        return new_articles
+
     def check_exists(self, url: str, niche: str = "general") -> bool:
         """
         Checks if a URL already exists in the target table for the given niche.
